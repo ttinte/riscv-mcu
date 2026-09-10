@@ -16,6 +16,15 @@ module baud_gen #(
     output logic baud_x16_en
 );
 
+    initial begin
+        if (CLOCK_RATE == 0)
+            $fatal(1, "CLOCK_RATE must be greater than zero");
+        if (BAUD_RATE == 0)
+            $fatal(1, "BAUD_RATE must be greater than zero");
+        if (CLOCK_RATE < 16*BAUD_RATE)
+            $fatal(1, "CLOCK_RATE must be at least 16 times BAUD_RATE");
+    end
+
     localparam int OVERSAMPLE_RATE = 16 * BAUD_RATE;
     localparam int DIVIDER = (CLOCK_RATE + OVERSAMPLE_RATE/2) / OVERSAMPLE_RATE;
     localparam int CNT_WIDTH = $clog2(DIVIDER);
