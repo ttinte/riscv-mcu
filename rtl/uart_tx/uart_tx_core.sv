@@ -42,7 +42,7 @@ module uart_tx_core (
 
         case (state)
             IDLE: begin
-                if (tx_data_valid) begin
+                if (tx_data_valid && tx_data_ready) begin
                     next_state = START;
                 end
             end
@@ -72,23 +72,22 @@ module uart_tx_core (
     // FSM state ffs
     always_ff @(posedge clk) begin
         if (rst) begin
-            state   <= IDLE;
-            tick    <= '0;
-            nbits   <= '0;
-            txd     <= 1'b1;
+            state       <= IDLE;
+            tick        <= '0;
+            nbits       <= '0;
+            tx_data_reg <= '0;
+            txd         <= 1'b1;
         end
         else begin
             state <= next_state;
-            if (baud_x16_en) tx_data_ready <= 1'b0;
             
-            if (state == IDLE && next_state == START) begin
+            if (tx_data_valid && tx_data_ready) begin
                 tx_data_reg <= tx_data;
             end
 
             case (state)
                 IDLE: begin
                     txd  <= 1'b1;
-                    tx_data_ready <= 1'b1;
                     tick <= '0;
                 end
 
@@ -123,12 +122,13 @@ module uart_tx_core (
                         tick <= tick + 4'd1;
                         if (tick == FULL_BIT_TICKS) begin
                             tick <= '0;
-                            tx_data_ready <= 1'b1;
                         end
                     end
                 end
             endcase
         end
     end
+
+    assign tx_data_ready = !rst && (state == IDLE);
 
 endmodule
