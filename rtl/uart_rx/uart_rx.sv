@@ -23,7 +23,9 @@ module uart_rx #(
     logic baud_x16_en;
     logic rxd;
 
-    cdc_sync_2ff rxd_sync_i0 (
+    cdc_sync_2ff #(
+        .RESET_VALUE (1'b1)
+    ) rxd_sync_i0 (
         .clk            (clk),
         .rst            (rst),
         .async_in       (rxd_async),

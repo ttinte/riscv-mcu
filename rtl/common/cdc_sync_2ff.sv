@@ -7,7 +7,9 @@
 //
 //-----------------------------------------------------------------------------
 
-module cdc_sync_2ff (
+module cdc_sync_2ff #(
+    parameter logic RESET_VALUE = 1'b0
+)(
     input  logic clk,
     input  logic rst,
     input  logic async_in,
@@ -18,8 +20,8 @@ module cdc_sync_2ff (
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            sync_ff1 <= '0;
-            sync_ff2 <= '0;
+            sync_ff1 <= RESET_VALUE;
+            sync_ff2 <= RESET_VALUE;
         end
         else begin
             sync_ff1 <= async_in;
