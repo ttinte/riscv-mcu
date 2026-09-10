@@ -1,4 +1,7 @@
-# UART FSM Calculator
+# RISC-V MCU
+
+An educational SystemVerilog project for building a small RISC-V microcontroller.
+It currently contains UART TX/RX RTL and a multi-cycle RV32I subset core.
 
 ## Simulation
 
