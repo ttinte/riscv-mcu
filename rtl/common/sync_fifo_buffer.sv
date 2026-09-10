@@ -27,19 +27,17 @@ module sync_fifo_buffer #(
     logic start_load;
 
     assign take_data  = data_valid && data_ready;
-    assign start_load = !fifo_empty && !load_pending && (!data_valid || take_data);
+    assign start_load = !rst && !fifo_empty && !load_pending && (!data_valid || take_data);
+    assign fifo_rd_en = start_load;
     
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            fifo_rd_en   <= 1'b0;
             load_pending <= 1'b0;
             data         <= '0;
             data_valid   <= 1'b0;
         end
         else begin
-            fifo_rd_en <= 1'b0;
-
             if (take_data) begin
                 data_valid <= 1'b0;
             end
@@ -51,7 +49,6 @@ module sync_fifo_buffer #(
             end
 
             if (start_load) begin
-                fifo_rd_en   <= 1'b1;
                 load_pending <= 1'b1;
             end
         end

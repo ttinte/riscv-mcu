@@ -24,6 +24,14 @@ module sync_fifo #(
     output logic             empty
 );
 
+    initial begin
+        if (WIDTH == 0)
+            $fatal(1, "FIFO WIDTH must be greater than zero");
+
+        if (DEPTH == 0)
+            $fatal(1, "FIFO DEPTH must be greater than zero");
+    end
+
     logic [WIDTH-1:0] mem [0:DEPTH-1];
 
     logic [$clog2(DEPTH)-1:0] wr_ptr;
