@@ -8,15 +8,14 @@
 //-----------------------------------------------------------------------------
 
 module uart_rx_core (
-    input  logic        clk,
-    input  logic        rst,
+    input  logic       clk_i,
+    input  logic       rst_ni,
+    input  logic       baud_x16_en_i,
+    input  logic       rxd_i,
 
-    input  logic        baud_x16_en,
-    input  logic        rxd,
-
-    output logic [7:0]  rx_data,
-    output logic        rx_data_valid,
-    output logic        frame_err
+    output logic [7:0] rx_data_o,
+    output logic       rx_data_valid_o,
+    output logic       frame_err_o
 );
 
     localparam logic [3:0] HALF_BIT_TICKS = 4'd7;
@@ -28,9 +27,9 @@ module uart_rx_core (
         START,
         DATA,
         STOP
-    } state_t;
+    } state_e;
 
-    state_t state, next_state;
+    state_e state_q, state_d;
 
     logic [3:0] tick;
     logic [2:0] nbits;
@@ -38,61 +37,61 @@ module uart_rx_core (
 
     // FSM Next-state logic
     always_comb begin
-        next_state = state;
+        state_d = state_q;
 
-        case (state)
+        unique case (state_q)
             IDLE: begin
-                if (!rxd) begin
-                    next_state = START;
+                if (!rxd_i) begin
+                    state_d = START;
                 end
             end
 
             START: begin
                 if (tick == HALF_BIT_TICKS) begin
-                    if (rxd) begin        
-                        next_state = IDLE;
+                    if (rxd_i) begin        
+                        state_d = IDLE;
                     end
                     else begin            
-                        next_state = DATA;
+                        state_d = DATA;
                     end
                 end
             end
 
             DATA:  begin
                 if (tick == FULL_BIT_TICKS && nbits == 3'd7) begin   
-                    next_state = STOP;
+                    state_d = STOP;
                 end
             end
 
             STOP: begin
                 if (tick == FULL_BIT_TICKS) begin    
-                    next_state = IDLE;
+                    state_d = IDLE;
                 end
             end
 
-            default: next_state = IDLE;
+            default: state_d = IDLE;
         endcase
     end 
 
     // FSM state ff
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            state         <= IDLE;
-            tick          <= '0;
-            nbits         <= '0;
-            shifter       <= '0;
-            rx_data       <= '0;
-            rx_data_valid <= 1'b0;
-            frame_err     <= 1'b0;
+    always_ff @(posedge clk_i) begin
+        if (!rst_ni) begin
+            state_q         <= IDLE;
+            tick            <= '0;
+            nbits           <= '0;
+            shifter         <= '0;
+            rx_data_o       <= '0;
+            rx_data_valid_o <= 1'b0;
+            frame_err_o     <= 1'b0;
         end
         else begin
-            rx_data_valid <= 1'b0;
-            frame_err     <= 1'b0;
+            rx_data_valid_o <= 1'b0;
+            frame_err_o     <= 1'b0;
 
-            if (baud_x16_en) begin
-                state <= next_state;
+            if (baud_x16_en_i) begin
+                state_q <= state_d;
 
-                case (state)
+                case (state_q)
                     IDLE: begin
                         tick <= '0;
                     end
@@ -109,7 +108,7 @@ module uart_rx_core (
                         tick <= tick + 4'd1;
                         if (tick == FULL_BIT_TICKS) begin
                             tick    <= '0;
-                            shifter <= {rxd, shifter[7:1]};
+                            shifter <= {rxd_i, shifter[7:1]};
                             nbits   <= nbits + 3'd1;
                         end
                     end
@@ -118,9 +117,9 @@ module uart_rx_core (
                         tick <= tick + 4'd1;
                         if (tick == FULL_BIT_TICKS) begin
                             tick            <= '0;
-                            rx_data         <= shifter;
-                            rx_data_valid   <= rxd;
-                            frame_err       <= !rxd;
+                            rx_data_o       <= shifter;
+                            rx_data_valid_o <= rxd_i;
+                            frame_err_o     <= !rxd_i;
                         end
                     end
 

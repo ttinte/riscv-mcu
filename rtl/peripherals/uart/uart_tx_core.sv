@@ -8,16 +8,15 @@
 //-----------------------------------------------------------------------------
 
 module uart_tx_core (
-    input  logic        clk,
-    input  logic        rst,
+    input  logic       clk_i,
+    input  logic       rst_ni,
+    input  logic       baud_x16_en_i,
 
-    input  logic        baud_x16_en,
+    input  logic [7:0] tx_data_i,
+    input  logic       tx_data_valid_i,
 
-    input  logic [7:0]  tx_data,
-    input  logic        tx_data_valid,
-
-    output logic        tx_data_ready,
-    output logic        txd
+    output logic       tx_data_ready_o,
+    output logic       txd_o
 );
 
     localparam logic [3:0] FULL_BIT_TICKS = 4'd15;
@@ -28,9 +27,9 @@ module uart_tx_core (
         START,
         DATA,
         STOP
-    } state_t;
+    } state_e;
 
-    state_t state, next_state;
+    state_e state_q, state_d;
 
     logic [3:0] tick;
     logic [2:0] nbits;
@@ -38,86 +37,86 @@ module uart_tx_core (
 
     // FSM Next-state logic
     always_comb begin
-        next_state = state;
+        state_d = state_q;
 
-        case (state)
+        unique case (state_q)
             IDLE: begin
-                if (tx_data_valid && tx_data_ready) begin
-                    next_state = START;
+                if (tx_data_valid_i && tx_data_ready_o) begin
+                    state_d = START;
                 end
             end
 
             START: begin
-                if (baud_x16_en && tick == FULL_BIT_TICKS) begin
-                    next_state = DATA;
+                if (baud_x16_en_i && tick == FULL_BIT_TICKS) begin
+                    state_d = DATA;
                 end
             end
 
             DATA: begin
-                if (baud_x16_en && tick == FULL_BIT_TICKS && nbits == 3'd7) begin
-                    next_state = STOP;
+                if (baud_x16_en_i && tick == FULL_BIT_TICKS && nbits == 3'd7) begin
+                    state_d = STOP;
                 end
             end
 
             STOP: begin
-                if (baud_x16_en && tick == FULL_BIT_TICKS) begin
-                    next_state = IDLE;
+                if (baud_x16_en_i && tick == FULL_BIT_TICKS) begin
+                    state_d = IDLE;
                 end
             end
 
-            default: next_state = IDLE;
+            default: state_d = IDLE;
         endcase
     end
 
     // FSM state ffs
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            state       <= IDLE;
+    always_ff @(posedge clk_i) begin
+        if (!rst_ni) begin
+            state_q     <= IDLE;
             tick        <= '0;
             nbits       <= '0;
             tx_data_reg <= '0;
-            txd         <= 1'b1;
+            txd_o       <= 1'b1;
         end
         else begin
-            state <= next_state;
+            state_q <= state_d;
             
-            if (tx_data_valid && tx_data_ready) begin
-                tx_data_reg <= tx_data;
+            if (tx_data_valid_i && tx_data_ready_o) begin
+                tx_data_reg <= tx_data_i;
             end
 
-            case (state)
+            case (state_q)
                 IDLE: begin
-                    txd  <= 1'b1;
-                    tick <= '0;
+                    txd_o <= 1'b1;
+                    tick  <= '0;
                 end
 
                 START: begin
-                    if (baud_x16_en) begin
-                        txd  <= 1'b0;
+                    if (baud_x16_en_i) begin
+                        txd_o <= 1'b0;
 
                         tick <= tick + 4'd1;
                         if (tick == FULL_BIT_TICKS) begin
-                            tick        <= '0;
-                            nbits       <= '0;
+                            tick  <= '0;
+                            nbits <= '0;
                         end
                     end
                 end
 
                 DATA: begin
-                    if (baud_x16_en) begin
-                        txd <= tx_data_reg[nbits];
+                    if (baud_x16_en_i) begin
+                        txd_o <= tx_data_reg[nbits];
 
                         tick <= tick + 4'd1;
                         if (tick == FULL_BIT_TICKS) begin
-                            tick <= '0;
+                            tick  <= '0;
                             nbits <= nbits + 3'd1;
                         end
                     end
                 end
 
                 STOP: begin
-                    if (baud_x16_en) begin
-                        txd <= 1'b1;
+                    if (baud_x16_en_i) begin
+                        txd_o <= 1'b1;
 
                         tick <= tick + 4'd1;
                         if (tick == FULL_BIT_TICKS) begin
@@ -129,6 +128,6 @@ module uart_tx_core (
         end
     end
 
-    assign tx_data_ready = !rst && (state == IDLE);
+    assign tx_data_ready_o = rst_ni && (state_q == IDLE);
 
 endmodule
