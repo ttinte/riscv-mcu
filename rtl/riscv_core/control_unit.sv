@@ -10,12 +10,14 @@ module control_unit (
 );
 
     typedef enum logic [2:0] {
-        STATE_IF,
-        STATE_ID,
-        STATE_EX,
-        STATE_MEM_RD,
-        STATE_MEM_WR,
-        STATE_WB
+        ST_IF_REQ,
+        ST_IF_RESP,
+        ST_ID,
+        ST_EX,
+        ST_LD_REQ,
+        ST_LD_RESP,
+        ST_ST,
+        ST_WB
     } state_e;
 
     state_e state_q, state_d;
@@ -43,16 +45,21 @@ module control_unit (
         ctrl_o.result_sel   = RESULT_ALU_COMB;
 
         unique case (state_q)
-            STATE_IF: begin
-                state_d = STATE_ID;
+            ST_IF_REQ: begin
+                state_d = ST_IF_RESP;
 
-                ctrl_o.pc_we  = 1'b1;
                 ctrl_o.mem_re = 1'b1;
-                ctrl_o.ir_we  = 1'b1;
             end
 
-            STATE_ID: begin
-                state_d = STATE_EX;
+            ST_IF_RESP: begin
+                state_d = ST_ID;
+
+                ctrl_o.pc_we  = 1'b1;
+                ctrl_o.ir_we = 1'b1;
+            end
+
+            ST_ID: begin
+                state_d = ST_EX;
 
                 if ((opcode == OPCODE_BRANCH) && (funct3 == FUNCT3_BEQ)) begin
                     ctrl_o.imm_sel  = IMM_B;
@@ -68,10 +75,10 @@ module control_unit (
                 end
             end
 
-            STATE_EX: begin
+            ST_EX: begin
                 unique case (opcode)
                     OPCODE_OP: begin
-                        state_d = STATE_WB;
+                        state_d = ST_WB;
 
                         ctrl_o.op_a_sel = OP_A_RS1;
                         ctrl_o.op_b_sel = OP_B_RS2;
@@ -87,7 +94,7 @@ module control_unit (
                     end
 
                     OPCODE_OP_IMM: begin
-                        state_d = STATE_WB;
+                        state_d = ST_WB;
 
                         ctrl_o.imm_sel  = IMM_I;
                         ctrl_o.op_a_sel = OP_A_RS1;
@@ -99,7 +106,7 @@ module control_unit (
                     end
 
                     OPCODE_LOAD: begin
-                        state_d = STATE_MEM_RD;
+                        state_d = ST_LD_REQ;
 
                         ctrl_o.imm_sel  = IMM_I;
                         ctrl_o.op_a_sel = OP_A_RS1;
@@ -108,7 +115,7 @@ module control_unit (
                     end
 
                     OPCODE_STORE: begin
-                        state_d = STATE_MEM_WR;
+                        state_d = ST_ST;
 
                         ctrl_o.imm_sel  = IMM_S;
                         ctrl_o.op_a_sel = OP_A_RS1;
@@ -117,7 +124,7 @@ module control_unit (
                     end
 
                     OPCODE_BRANCH: begin
-                        state_d = STATE_IF;
+                        state_d = ST_IF_REQ;
 
                         if (alu_zero_i) begin
                             ctrl_o.pc_we  = 1'b1;
@@ -129,7 +136,7 @@ module control_unit (
                     end
 
                     OPCODE_JAL: begin
-                        state_d = STATE_WB;
+                        state_d = ST_WB;
 
                         ctrl_o.pc_we      = 1'b1;
                         ctrl_o.op_a_sel   = OP_A_OLD_PC;
@@ -142,24 +149,31 @@ module control_unit (
                 endcase
             end
 
-            STATE_MEM_RD: begin
-                state_d = STATE_WB;
+            ST_LD_REQ: begin
+                state_d = ST_LD_RESP;
 
                 ctrl_o.mem_addr_sel = MEM_ADDR_RESULT;
                 ctrl_o.mem_re       = 1'b1;
                 ctrl_o.result_sel   = RESULT_ALU_OUT_Q;
             end
 
-            STATE_MEM_WR: begin
-                state_d = STATE_IF;
+            ST_LD_RESP: begin
+                state_d = ST_WB;
+
+                ctrl_o.mem_addr_sel = MEM_ADDR_RESULT;
+                ctrl_o.result_sel   = RESULT_ALU_OUT_Q;
+            end
+
+            ST_ST: begin
+                state_d = ST_IF_REQ;
 
                 ctrl_o.mem_addr_sel = MEM_ADDR_RESULT;
                 ctrl_o.mem_we       = 1'b1;
                 ctrl_o.result_sel   = RESULT_ALU_OUT_Q;
             end
 
-            STATE_WB: begin
-                state_d = STATE_IF;
+            ST_WB: begin
+                state_d = ST_IF_REQ;
 
                 ctrl_o.reg_we = 1'b1;
                 
@@ -178,13 +192,13 @@ module control_unit (
 
     always_ff @(posedge clk_i) begin
         if (!rst_ni) begin
-            state_q <= STATE_IF;
+            state_q <= ST_IF_REQ;
         end else begin
             state_q <= state_d;
         end
     end
 
-    assign trace_valid_o = (state_q == STATE_WB) || (state_q == STATE_MEM_WR) ||
-                           ((state_q == STATE_EX) && (opcode == OPCODE_BRANCH));
+    assign trace_valid_o = (state_q == ST_WB) || (state_q == ST_ST) ||
+                           ((state_q == ST_EX) && (opcode == OPCODE_BRANCH));
 
 endmodule

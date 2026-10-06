@@ -69,10 +69,6 @@ module rv32_core (
         operand_b = 32'd4;
         result    = alu_result;
 
-        if (ctrl.mem_addr_sel == MEM_ADDR_RESULT) begin
-            mem_addr = result;
-        end
-
         if (ctrl.op_a_sel == OP_A_OLD_PC) begin
             operand_a = old_pc_q;
         end else if (ctrl.op_a_sel == OP_A_RS1) begin
@@ -89,6 +85,10 @@ module rv32_core (
             result = alu_out_q;
         end else if (ctrl.result_sel == RESULT_MEM_DATA) begin
             result = mem_rd_data_q;
+        end
+
+        if (ctrl.mem_addr_sel == MEM_ADDR_RESULT) begin
+            mem_addr = result;
         end
     end
 
