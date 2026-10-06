@@ -11,17 +11,17 @@ module sync_fifo #(
     parameter int WIDTH = 8,
     parameter int DEPTH = 16
 )(
-    input  logic             clk,
-    input  logic             rst,
+    input  logic             clk_i,
+    input  logic             rst_ni,
 
-    input  logic             wr_en,
-    input  logic [WIDTH-1:0] din,
+    input  logic             we_i,
+    input  logic [WIDTH-1:0] data_i,
 
-    input  logic             rd_en,
-    output logic [WIDTH-1:0] dout,
+    input  logic             re_i,
+    output logic [WIDTH-1:0] data_o,
 
-    output logic             full,
-    output logic             empty
+    output logic             full_o,
+    output logic             empty_o
 );
 
     initial begin
@@ -39,41 +39,41 @@ module sync_fifo #(
 
     logic [$clog2(DEPTH+1)-1:0] count;
 
-    assign full  = (count == DEPTH);
-    assign empty = (count == '0);
+    assign full_o  = (count == DEPTH);
+    assign empty_o = (count == '0);
 
 
-    always_ff @(posedge clk) begin
-        if (rst) begin
+    always_ff @(posedge clk_i) begin
+        if (!rst_ni) begin
             wr_ptr  <= '0;
             rd_ptr  <= '0;
             count   <= '0;
-            dout    <= '0;
+            data_o  <= '0;
         end
         else begin
-            if (wr_en && !full) begin
-                mem[wr_ptr] <= din;
+            if (we_i && !full_o) begin
+                mem[wr_ptr] <= data_i;
 
                 if (wr_ptr == DEPTH-1)
                     wr_ptr <= '0;
                 else
                     wr_ptr <= wr_ptr + 1'b1;
                 
-                if (rd_en && !empty)
+                if (re_i && !empty_o)
                     count <= count;
                 else
                     count <= count + 1'b1;
             end
 
-            if (rd_en && !empty) begin
-                dout    <= mem[rd_ptr];
+            if (re_i && !empty_o) begin
+                data_o <= mem[rd_ptr];
                 
                 if (rd_ptr == DEPTH-1)
                     rd_ptr <= '0;
                 else
                     rd_ptr <= rd_ptr + 1'b1;
 
-                if (wr_en && !full)
+                if (we_i && !full_o)
                     count <= count;
                 else
                     count <= count - 1'b1;
