@@ -30,6 +30,11 @@ module imm_gen (
                 1'b0
             };
 
+            IMM_U: imm_ext_o = {
+                instr_i[31:12],
+                12'b0
+            };
+
             IMM_J: imm_ext_o = {
                 {11{instr_i[31]}},
                 instr_i[31],

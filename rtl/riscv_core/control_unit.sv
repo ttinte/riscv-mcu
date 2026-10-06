@@ -9,10 +9,11 @@ module control_unit (
     output logic         trace_valid_o
 );
 
-    typedef enum logic [2:0] {
+    typedef enum logic [3:0] {
         ST_IF_REQ,
         ST_IF_RESP,
         ST_ID,
+        ST_JALR_TARGET,
         ST_EX,
         ST_LD_REQ,
         ST_LD_RESP,
@@ -33,6 +34,7 @@ module control_unit (
     always_comb begin
         state_d             = state_q;
         ctrl_o.pc_we        = 1'b0;
+        ctrl_o.pc_clear_lsb = 1'b0;
         ctrl_o.mem_addr_sel = MEM_ADDR_PC;
         ctrl_o.mem_we       = 1'b0;
         ctrl_o.mem_re       = 1'b0;
@@ -61,18 +63,51 @@ module control_unit (
             ST_ID: begin
                 state_d = ST_EX;
 
-                if ((opcode == OPCODE_BRANCH) && (funct3 == FUNCT3_BEQ)) begin
-                    ctrl_o.imm_sel  = IMM_B;
-                    ctrl_o.op_a_sel = OP_A_OLD_PC;
-                    ctrl_o.op_b_sel = OP_B_IMM;
-                    ctrl_o.alu_op   = ALU_ADD;
-                end
-                else if (opcode == OPCODE_JAL) begin
-                    ctrl_o.imm_sel  = IMM_J;
-                    ctrl_o.op_a_sel = OP_A_OLD_PC;
-                    ctrl_o.op_b_sel = OP_B_IMM;
-                    ctrl_o.alu_op   = ALU_ADD;
-                end
+                unique case (opcode)
+                    OPCODE_BRANCH: begin
+                        if (funct3 == FUNCT3_BEQ || funct3 == FUNCT3_BNE) begin
+                            ctrl_o.imm_sel  = IMM_B;
+                            ctrl_o.op_a_sel = OP_A_OLD_PC;
+                            ctrl_o.op_b_sel = OP_B_IMM;
+                        end
+                    end
+
+                    OPCODE_AUIPC: begin
+                        state_d = ST_WB;
+
+                        ctrl_o.imm_sel  = IMM_U;
+                        ctrl_o.op_a_sel = OP_A_OLD_PC;
+                        ctrl_o.op_b_sel = OP_B_IMM;
+                    end
+
+                    OPCODE_LUI: begin
+                        state_d = ST_WB;
+
+                        ctrl_o.imm_sel = IMM_U;
+                    end
+
+                    OPCODE_JALR: begin
+                        if (funct3 == FUNCT3_JALR) begin
+                            state_d = ST_JALR_TARGET;
+                        end
+                    end
+
+                    OPCODE_JAL: begin
+                        ctrl_o.imm_sel  = IMM_J;
+                        ctrl_o.op_a_sel = OP_A_OLD_PC;
+                        ctrl_o.op_b_sel = OP_B_IMM;
+                    end
+
+                    default: ;
+                endcase
+            end
+
+            ST_JALR_TARGET: begin
+                state_d = ST_EX;
+
+                ctrl_o.imm_sel  = IMM_I;
+                ctrl_o.op_a_sel = OP_A_RS1;
+                ctrl_o.op_b_sel = OP_B_IMM;
             end
 
             ST_EX: begin
@@ -111,7 +146,6 @@ module control_unit (
                         ctrl_o.imm_sel  = IMM_I;
                         ctrl_o.op_a_sel = OP_A_RS1;
                         ctrl_o.op_b_sel = OP_B_IMM;
-                        ctrl_o.alu_op   = ALU_ADD;
                     end
 
                     OPCODE_STORE: begin
@@ -120,14 +154,16 @@ module control_unit (
                         ctrl_o.imm_sel  = IMM_S;
                         ctrl_o.op_a_sel = OP_A_RS1;
                         ctrl_o.op_b_sel = OP_B_IMM;
-                        ctrl_o.alu_op   = ALU_ADD;
                     end
 
                     OPCODE_BRANCH: begin
                         state_d = ST_IF_REQ;
 
-                        if (alu_zero_i) begin
-                            ctrl_o.pc_we  = 1'b1;
+                        if (funct3 == FUNCT3_BEQ) begin
+                            ctrl_o.pc_we = alu_zero_i;
+                        end
+                        else if (funct3 == FUNCT3_BNE) begin
+                            ctrl_o.pc_we = !alu_zero_i;
                         end
                         ctrl_o.op_a_sel   = OP_A_RS1;
                         ctrl_o.op_b_sel   = OP_B_RS2;
@@ -135,14 +171,23 @@ module control_unit (
                         ctrl_o.result_sel = RESULT_ALU_OUT_Q;
                     end
 
+                    OPCODE_JALR: begin
+                        state_d = ST_WB;
+
+                        ctrl_o.pc_we        = 1'b1;
+                        ctrl_o.pc_clear_lsb = 1'b1;
+                        ctrl_o.op_a_sel     = OP_A_OLD_PC;
+                        ctrl_o.op_b_sel     = OP_B_FOUR;
+                        ctrl_o.result_sel   = RESULT_ALU_OUT_Q;
+                    end
+
                     OPCODE_JAL: begin
                         state_d = ST_WB;
 
-                        ctrl_o.pc_we      = 1'b1;
-                        ctrl_o.op_a_sel   = OP_A_OLD_PC;
-                        ctrl_o.op_b_sel   = OP_B_FOUR;
-                        ctrl_o.alu_op     = ALU_ADD;
-                        ctrl_o.result_sel = RESULT_ALU_OUT_Q;
+                        ctrl_o.pc_we        = 1'b1;
+                        ctrl_o.op_a_sel     = OP_A_OLD_PC;
+                        ctrl_o.op_b_sel     = OP_B_FOUR;
+                        ctrl_o.result_sel   = RESULT_ALU_OUT_Q;
                     end
                     
                     default: ;
@@ -180,7 +225,10 @@ module control_unit (
                 unique case (opcode)
                     OPCODE_OP:     ctrl_o.result_sel = RESULT_ALU_OUT_Q;
                     OPCODE_OP_IMM: ctrl_o.result_sel = RESULT_ALU_OUT_Q;
-                    OPCODE_LOAD:   ctrl_o.result_sel = RESULT_MEM_DATA;
+                    OPCODE_LOAD:   ctrl_o.result_sel = RESULT_MEM_DATA_Q;
+                    OPCODE_AUIPC:  ctrl_o.result_sel = RESULT_ALU_OUT_Q;
+                    OPCODE_LUI:    ctrl_o.result_sel = RESULT_IMM_U_Q;
+                    OPCODE_JALR:   ctrl_o.result_sel = RESULT_ALU_OUT_Q;
                     OPCODE_JAL:    ctrl_o.result_sel = RESULT_ALU_OUT_Q;
                     default: ;
                 endcase

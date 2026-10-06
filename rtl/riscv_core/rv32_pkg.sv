@@ -6,6 +6,9 @@ package rv32_pkg;
         OPCODE_LOAD   = 7'b000_0011,    //I_type
         OPCODE_STORE  = 7'b010_0011,    //S_type
         OPCODE_BRANCH = 7'b110_0011,    //B_type
+        OPCODE_AUIPC  = 7'b001_0111,    //U-type
+        OPCODE_LUI    = 7'b011_0111,    //U-type
+        OPCODE_JALR   = 7'b110_0111,    //I_type
         OPCODE_JAL    = 7'b110_1111     //J_type
     } opcode_e;
 
@@ -14,9 +17,11 @@ package rv32_pkg;
     localparam logic [2:0] FUNCT3_OR      = 3'b110;
     localparam logic [2:0] FUNCT3_AND     = 3'b111;
     localparam logic [2:0] FUNCT3_ADDI    = 3'b000;
+    localparam logic [2:0] FUNCT3_JALR    = 3'b000;
     localparam logic [2:0] FUNCT3_LW      = 3'b010;
     localparam logic [2:0] FUNCT3_SW      = 3'b010;
     localparam logic [2:0] FUNCT3_BEQ     = 3'b000;
+    localparam logic [2:0] FUNCT3_BNE     = 3'b001;
 
     localparam logic [6:0] FUNCT7_BASE = 7'b000_0000;
     localparam logic [6:0] FUNCT7_SUB  = 7'b010_0000;
@@ -31,6 +36,7 @@ package rv32_pkg;
         IMM_I,
         IMM_S,
         IMM_B,
+        IMM_U,
         IMM_J
     } imm_sel_e;
 
@@ -57,11 +63,13 @@ package rv32_pkg;
     typedef enum logic [1:0] {
         RESULT_ALU_COMB,
         RESULT_ALU_OUT_Q,
-        RESULT_MEM_DATA
+        RESULT_MEM_DATA_Q,
+        RESULT_IMM_U_Q
     } result_sel_e;
 
     typedef struct packed {
         logic           pc_we;
+        logic           pc_clear_lsb;
         mem_addr_sel_e  mem_addr_sel;
         logic           mem_we;
         logic           mem_re;
