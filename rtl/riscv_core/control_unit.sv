@@ -3,7 +3,7 @@ import rv32_pkg::*;
 module control_unit (
     input  logic         clk_i,
     input  logic         rst_ni,
-    input  logic         alu_zero_i,
+    input  logic         take_branch_i,
     input  logic [31:0]  instr_i,
     output decode_ctrl_t ctrl_o,
     output logic         trace_valid_o
@@ -159,12 +159,7 @@ module control_unit (
                     OPCODE_BRANCH: begin
                         state_d = ST_IF_REQ;
 
-                        if (funct3 == FUNCT3_BEQ) begin
-                            ctrl_o.pc_we = alu_zero_i;
-                        end
-                        else if (funct3 == FUNCT3_BNE) begin
-                            ctrl_o.pc_we = !alu_zero_i;
-                        end
+                        ctrl_o.pc_we      = take_branch_i;
                         ctrl_o.op_a_sel   = OP_A_RS1;
                         ctrl_o.op_b_sel   = OP_B_RS2;
                         ctrl_o.alu_op     = ALU_SUB;

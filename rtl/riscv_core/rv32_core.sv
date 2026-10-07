@@ -19,15 +19,18 @@ module rv32_core (
 );
 
     decode_ctrl_t ctrl;
+    logic         take_branch;
 
-    control_unit u_control_unit (
-        .clk_i              (clk_i),
-        .rst_ni             (rst_ni),
-        .alu_zero_i         (alu_zero),
-        .instr_i            (instr_q),
-        .ctrl_o             (ctrl),
-        .trace_valid_o      (trace_valid_o)
-    );
+    logic [31:0] rs1_data;
+    logic [31:0] rs2_data;
+    logic [31:0] imm_ext;
+    logic [31:0] alu_result;
+    alu_flags_t  alu_flags;
+
+    logic [31:0] mem_addr;
+    logic [31:0] operand_a;
+    logic [31:0] operand_b;
+    logic [31:0] result;
 
     logic [31:0] pc_q;
     logic [31:0] old_pc_q;
@@ -61,11 +64,6 @@ module rv32_core (
         end
     end 
 
-    logic [31:0] mem_addr;
-    logic [31:0] operand_a;
-    logic [31:0] operand_b;
-    logic [31:0] result;
-
     always_comb begin
         mem_addr  = pc_q;
         operand_a = pc_q;
@@ -97,16 +95,25 @@ module rv32_core (
         end
     end
 
-    logic [31:0] rs1_data;
-    logic [31:0] rs2_data;
-    logic [31:0] imm_ext;
-    logic [31:0] alu_result;
-    logic        alu_zero;
-
     assign mem_we_o      = ctrl.mem_we;
     assign mem_re_o      = ctrl.mem_re;
     assign mem_addr_o    = mem_addr;
     assign mem_wr_data_o = rs2_data_q;
+
+    control_unit u_control_unit (
+        .clk_i              (clk_i),
+        .rst_ni             (rst_ni),
+        .take_branch_i      (take_branch),
+        .instr_i            (instr_q),
+        .ctrl_o             (ctrl),
+        .trace_valid_o      (trace_valid_o)
+    );
+
+    branch_unit u_branch_unit (
+        .br_funct3_i        (instr_q[14:12]),
+        .alu_zero_i         (alu_flags.zero),
+        .take_branch_o      (take_branch)
+    );
 
     regfile u_regfile (
         .clk_i              (clk_i),
@@ -121,7 +128,7 @@ module rv32_core (
 
     imm_gen u_imm_gen (
         .imm_sel_i          (ctrl.imm_sel),
-        .instr_i            (instr_q[31:0]),
+        .instr_i            (instr_q),
         .imm_ext_o          (imm_ext)
     );
 
@@ -130,7 +137,7 @@ module rv32_core (
         .operand_a_i        (operand_a),
         .operand_b_i        (operand_b),
         .alu_result_o       (alu_result),
-        .alu_zero_o         (alu_zero)
+        .alu_flags_o        (alu_flags)
     );
 
     assign trace_pc_o         = old_pc_q;
