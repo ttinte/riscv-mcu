@@ -12,18 +12,18 @@ package rv32_pkg;
         OPCODE_JAL    = 7'b110_1111     //J_type
     } opcode_e;
 
-    localparam logic [2:0] FUNCT3_ADD_SUB = 3'b000;
+    localparam logic [2:0] FUNCT3_ADD_SUB = 3'b000;     //OP
     localparam logic [2:0] FUNCT3_SLT     = 3'b010;
     localparam logic [2:0] FUNCT3_OR      = 3'b110;
     localparam logic [2:0] FUNCT3_AND     = 3'b111;
-    localparam logic [2:0] FUNCT3_ADDI    = 3'b000;
-    localparam logic [2:0] FUNCT3_JALR    = 3'b000;
-    localparam logic [2:0] FUNCT3_LW      = 3'b010;
-    localparam logic [2:0] FUNCT3_SW      = 3'b010;
-    localparam logic [2:0] FUNCT3_BEQ     = 3'b000;
+    localparam logic [2:0] FUNCT3_ADDI    = 3'b000;     //OP-IMM
+    localparam logic [2:0] FUNCT3_JALR    = 3'b000;     //JALR
+    localparam logic [2:0] FUNCT3_LW      = 3'b010;     //LOAD
+    localparam logic [2:0] FUNCT3_SW      = 3'b010;     //STORE
+    localparam logic [2:0] FUNCT3_BEQ     = 3'b000;     //BRANCH
     localparam logic [2:0] FUNCT3_BNE     = 3'b001;
 
-    localparam logic [6:0] FUNCT7_BASE = 7'b000_0000;
+    localparam logic [6:0] FUNCT7_BASE = 7'b000_0000;   //OP
     localparam logic [6:0] FUNCT7_SUB  = 7'b010_0000;
 
     typedef enum logic {
@@ -59,6 +59,13 @@ package rv32_pkg;
         ALU_AND,
         ALU_SLT
     } alu_op_e;
+
+    typedef struct packed {
+        logic zero;
+        logic sign;
+        logic carry;
+        logic overflow;
+    } alu_flags_t;
 
     typedef enum logic [1:0] {
         RESULT_ALU_COMB,
