@@ -38,7 +38,6 @@ module rv32_core (
     logic [31:0] mem_rd_data_q;
     logic [31:0] rs1_data_q;
     logic [31:0] rs2_data_q;
-    logic [31:0] imm_u_q;
     logic [31:0] alu_out_q;
 
     always_ff @(posedge clk_i) begin
@@ -49,7 +48,6 @@ module rv32_core (
             mem_rd_data_q <= '0;
             rs1_data_q    <= '0;
             rs2_data_q    <= '0;
-            imm_u_q       <= '0;
             alu_out_q     <= '0;
         end
         else begin
@@ -59,7 +57,6 @@ module rv32_core (
             mem_rd_data_q <= mem_rd_data_i;
             rs1_data_q    <= rs1_data;
             rs2_data_q    <= rs2_data;
-            imm_u_q       <= imm_ext;
             alu_out_q     <= alu_result;
         end
     end 
@@ -86,8 +83,6 @@ module rv32_core (
             result = ctrl.pc_clear_lsb ? {alu_out_q[31:1], 1'b0} : alu_out_q;
         end else if (ctrl.result_sel == RESULT_MEM_DATA_Q) begin
             result = mem_rd_data_q;
-        end else if (ctrl.result_sel == RESULT_IMM_U_Q) begin
-            result = imm_u_q;
         end
 
         if (ctrl.mem_addr_sel == MEM_ADDR_RESULT) begin

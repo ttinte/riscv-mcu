@@ -20,12 +20,13 @@ module alu (
 
     always_comb begin
         unique case (alu_op_i)
-            ALU_ADD:  alu_result_o = adder_result[31:0];
-            ALU_SUB:  alu_result_o = adder_result[31:0];
-            ALU_OR:   alu_result_o = operand_a_i | operand_b_i;
-            ALU_AND:  alu_result_o = operand_a_i & operand_b_i;
-            ALU_SLT:  alu_result_o = {31'd0, adder_result[31] ^ alu_flags_o.overflow};
-            ALU_SLTU: alu_result_o = {31'd0, ~adder_result[32]};
+            ALU_ADD:    alu_result_o = adder_result[31:0];
+            ALU_SUB:    alu_result_o = adder_result[31:0];
+            ALU_OR:     alu_result_o = operand_a_i | operand_b_i;
+            ALU_AND:    alu_result_o = operand_a_i & operand_b_i;
+            ALU_SLT:    alu_result_o = {31'd0, adder_result[31] ^ alu_flags_o.overflow};
+            ALU_SLTU:   alu_result_o = {31'd0, ~adder_result[32]};
+            ALU_PASS_B: alu_result_o = operand_b_i;
             default: alu_result_o = '0;
         endcase
     end

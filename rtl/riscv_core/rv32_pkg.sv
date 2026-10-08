@@ -63,7 +63,8 @@ package rv32_pkg;
         ALU_OR,
         ALU_AND,
         ALU_SLT,
-        ALU_SLTU
+        ALU_SLTU,
+        ALU_PASS_B
     } alu_op_e;
 
     typedef struct packed {
@@ -76,8 +77,7 @@ package rv32_pkg;
     typedef enum logic [1:0] {
         RESULT_ALU_COMB,
         RESULT_ALU_OUT_Q,
-        RESULT_MEM_DATA_Q,
-        RESULT_IMM_U_Q
+        RESULT_MEM_DATA_Q
     } result_sel_e;
 
     typedef struct packed {

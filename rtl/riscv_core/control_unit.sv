@@ -84,7 +84,9 @@ module control_unit (
                     OPCODE_LUI: begin
                         state_d = ST_WB;
 
-                        ctrl_o.imm_sel = IMM_U;
+                        ctrl_o.imm_sel  = IMM_U;
+                        ctrl_o.op_b_sel = OP_B_IMM;
+                        ctrl_o.alu_op   = ALU_PASS_B;
                     end
 
                     OPCODE_JALR: begin
@@ -224,7 +226,7 @@ module control_unit (
                     OPCODE_OP_IMM: ctrl_o.result_sel = RESULT_ALU_OUT_Q;
                     OPCODE_LOAD:   ctrl_o.result_sel = RESULT_MEM_DATA_Q;
                     OPCODE_AUIPC:  ctrl_o.result_sel = RESULT_ALU_OUT_Q;
-                    OPCODE_LUI:    ctrl_o.result_sel = RESULT_IMM_U_Q;
+                    OPCODE_LUI:    ctrl_o.result_sel = RESULT_ALU_OUT_Q;
                     OPCODE_JALR:   ctrl_o.result_sel = RESULT_ALU_OUT_Q;
                     OPCODE_JAL:    ctrl_o.result_sel = RESULT_ALU_OUT_Q;
                     default: ;
