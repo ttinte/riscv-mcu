@@ -20,6 +20,7 @@ module rv32_core (
 
     decode_ctrl_t ctrl;
     logic         take_branch;
+    branch_op_e   branch_op;
 
     logic [31:0] rs1_data;
     logic [31:0] rs2_data;
@@ -101,11 +102,12 @@ module rv32_core (
         .take_branch_i      (take_branch),
         .instr_i            (instr_q),
         .ctrl_o             (ctrl),
+        .branch_op_o        (branch_op),
         .trace_valid_o      (trace_valid_o)
     );
 
     branch_unit u_branch_unit (
-        .br_funct3_i        (instr_q[14:12]),
+        .branch_op_i        (branch_op),
         .flags_i            (alu_flags),
         .take_branch_o      (take_branch)
     );

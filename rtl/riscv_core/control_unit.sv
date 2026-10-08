@@ -6,8 +6,34 @@ module control_unit (
     input  logic         take_branch_i,
     input  logic [31:0]  instr_i,
     output decode_ctrl_t ctrl_o,
+    output branch_op_e   branch_op_o,
     output logic         trace_valid_o
 );
+
+    localparam logic [2:0] FUNCT3_ADD_SUB = 3'b000;     //OP
+    localparam logic [2:0] FUNCT3_SLT     = 3'b010;
+    localparam logic [2:0] FUNCT3_SLTU    = 3'b011;
+    localparam logic [2:0] FUNCT3_XOR     = 3'b100;
+    localparam logic [2:0] FUNCT3_OR      = 3'b110;
+    localparam logic [2:0] FUNCT3_AND     = 3'b111;
+    localparam logic [2:0] FUNCT3_ADDI    = 3'b000;     //OP-IMM
+    localparam logic [2:0] FUNCT3_SLTI    = 3'b010;
+    localparam logic [2:0] FUNCT3_SLTIU   = 3'b011;
+    localparam logic [2:0] FUNCT3_XORI    = 3'b100;
+    localparam logic [2:0] FUNCT3_ORI     = 3'b110;
+    localparam logic [2:0] FUNCT3_ANDI    = 3'b111;
+    localparam logic [2:0] FUNCT3_JALR    = 3'b000;     //JALR
+    localparam logic [2:0] FUNCT3_LW      = 3'b010;     //LOAD
+    localparam logic [2:0] FUNCT3_SW      = 3'b010;     //STORE
+    localparam logic [2:0] FUNCT3_BEQ     = 3'b000;     //BRANCH
+    localparam logic [2:0] FUNCT3_BNE     = 3'b001;
+    localparam logic [2:0] FUNCT3_BLT     = 3'b100;
+    localparam logic [2:0] FUNCT3_BGE     = 3'b101;
+    localparam logic [2:0] FUNCT3_BLTU    = 3'b110;
+    localparam logic [2:0] FUNCT3_BGEU    = 3'b111;
+
+    localparam logic [6:0] FUNCT7_BASE = 7'b000_0000;   //OP
+    localparam logic [6:0] FUNCT7_SUB  = 7'b010_0000;
 
     typedef enum logic [3:0] {
         ST_IF_REQ,
@@ -249,6 +275,23 @@ module control_unit (
             state_q <= ST_IF_REQ;
         end else begin
             state_q <= state_d;
+        end
+    end
+
+    // branch_op decode
+    always_comb begin
+        branch_op_o = BRANCH_NONE;
+
+        if (opcode == OPCODE_BRANCH) begin
+            unique case (funct3)
+                FUNCT3_BEQ:  branch_op_o = BRANCH_EQ;
+                FUNCT3_BNE:  branch_op_o = BRANCH_NE;
+                FUNCT3_BLT:  branch_op_o = BRANCH_LT;
+                FUNCT3_BGE:  branch_op_o = BRANCH_GE;
+                FUNCT3_BLTU: branch_op_o = BRANCH_LTU;
+                FUNCT3_BGEU: branch_op_o = BRANCH_GEU;
+                default: ;
+            endcase
         end
     end
 
