@@ -12,17 +12,20 @@ module alu (
     logic [32:0] adder_result;
 
     assign operand_b_src = (alu_op_i == ALU_ADD) ? operand_b_i :
-                           (alu_op_i == ALU_SUB) ? ~operand_b_i : '0;
+                           (alu_op_i == ALU_SUB || alu_op_i == ALU_SLT || 
+                            alu_op_i == ALU_SLTU ) ? ~operand_b_i : '0;
     assign adder_result  = {1'b0, operand_a_i} + {1'b0, operand_b_src} + 
-                           {32'd0, (alu_op_i == ALU_SUB)};
+                           {32'd0, (alu_op_i == ALU_SUB || alu_op_i == ALU_SLT || 
+                                    alu_op_i == ALU_SLTU)};
 
     always_comb begin
         unique case (alu_op_i)
-            ALU_ADD: alu_result_o = adder_result[31:0];
-            ALU_SUB: alu_result_o = adder_result[31:0];
-            ALU_OR:  alu_result_o = operand_a_i | operand_b_i;
-            ALU_AND: alu_result_o = operand_a_i & operand_b_i;
-            ALU_SLT: alu_result_o = ($signed(operand_a_i) < $signed(operand_b_i)) ? 32'd1 : 32'd0;
+            ALU_ADD:  alu_result_o = adder_result[31:0];
+            ALU_SUB:  alu_result_o = adder_result[31:0];
+            ALU_OR:   alu_result_o = operand_a_i | operand_b_i;
+            ALU_AND:  alu_result_o = operand_a_i & operand_b_i;
+            ALU_SLT:  alu_result_o = {31'd0, adder_result[31] ^ alu_flags_o.overflow};
+            ALU_SLTU: alu_result_o = {31'd0, ~adder_result[32]};
             default: alu_result_o = '0;
         endcase
     end

@@ -111,7 +111,7 @@ module rv32_core (
 
     branch_unit u_branch_unit (
         .br_funct3_i        (instr_q[14:12]),
-        .alu_flags_i        (alu_flags),
+        .flags_i            (alu_flags),
         .take_branch_o      (take_branch)
     );
 

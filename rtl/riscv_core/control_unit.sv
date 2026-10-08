@@ -65,7 +65,8 @@ module control_unit (
 
                 unique case (opcode)
                     OPCODE_BRANCH: begin
-                        if (funct3 == FUNCT3_BEQ || funct3 == FUNCT3_BNE) begin
+                        if (funct3 == FUNCT3_BEQ || funct3 == FUNCT3_BNE  || funct3 == FUNCT3_BLT  || 
+                            funct3 == FUNCT3_BGE || funct3 == FUNCT3_BLTU || funct3 == FUNCT3_BGEU) begin
                             ctrl_o.imm_sel  = IMM_B;
                             ctrl_o.op_a_sel = OP_A_OLD_PC;
                             ctrl_o.op_b_sel = OP_B_IMM;
@@ -122,6 +123,7 @@ module control_unit (
                             {FUNCT7_BASE, FUNCT3_ADD_SUB}: ctrl_o.alu_op = ALU_ADD;
                             {FUNCT7_SUB,  FUNCT3_ADD_SUB}: ctrl_o.alu_op = ALU_SUB;
                             {FUNCT7_BASE, FUNCT3_SLT}:     ctrl_o.alu_op = ALU_SLT;
+                            {FUNCT7_BASE, FUNCT3_SLTU}:    ctrl_o.alu_op = ALU_SLTU;
                             {FUNCT7_BASE, FUNCT3_OR}:      ctrl_o.alu_op = ALU_OR;
                             {FUNCT7_BASE, FUNCT3_AND}:     ctrl_o.alu_op = ALU_AND;
                             default: ;
