@@ -1,23 +1,29 @@
 package rv32_pkg;
 
     typedef enum logic [6:0] {
-        OPCODE_OP     = 7'b011_0011,    //R_type
-        OPCODE_OP_IMM = 7'b001_0011,    //I_type
-        OPCODE_LOAD   = 7'b000_0011,    //I_type
-        OPCODE_STORE  = 7'b010_0011,    //S_type
-        OPCODE_BRANCH = 7'b110_0011,    //B_type
-        OPCODE_AUIPC  = 7'b001_0111,    //U-type
-        OPCODE_LUI    = 7'b011_0111,    //U-type
-        OPCODE_JALR   = 7'b110_0111,    //I_type
-        OPCODE_JAL    = 7'b110_1111     //J_type
+        OPCODE_OP     = 7'd51,
+        OPCODE_OP_IMM = 7'd19,
+        OPCODE_LOAD   = 7'd3,
+        OPCODE_STORE  = 7'd35,
+        OPCODE_BRANCH = 7'd99,
+        OPCODE_AUIPC  = 7'd23,
+        OPCODE_LUI    = 7'd55,
+        OPCODE_JALR   = 7'd103,
+        OPCODE_JAL    = 7'd111
     } opcode_e;
 
     localparam logic [2:0] FUNCT3_ADD_SUB = 3'b000;     //OP
     localparam logic [2:0] FUNCT3_SLT     = 3'b010;
     localparam logic [2:0] FUNCT3_SLTU    = 3'b011;
+    localparam logic [2:0] FUNCT3_XOR     = 3'b100;
     localparam logic [2:0] FUNCT3_OR      = 3'b110;
     localparam logic [2:0] FUNCT3_AND     = 3'b111;
     localparam logic [2:0] FUNCT3_ADDI    = 3'b000;     //OP-IMM
+    localparam logic [2:0] FUNCT3_SLTI    = 3'b010;
+    localparam logic [2:0] FUNCT3_SLTIU   = 3'b011;
+    localparam logic [2:0] FUNCT3_XORI    = 3'b100;
+    localparam logic [2:0] FUNCT3_ORI     = 3'b110;
+    localparam logic [2:0] FUNCT3_ANDI    = 3'b111;
     localparam logic [2:0] FUNCT3_JALR    = 3'b000;     //JALR
     localparam logic [2:0] FUNCT3_LW      = 3'b010;     //LOAD
     localparam logic [2:0] FUNCT3_SW      = 3'b010;     //STORE
@@ -60,6 +66,7 @@ package rv32_pkg;
     typedef enum logic [2:0] {
         ALU_ADD,
         ALU_SUB,
+        ALU_XOR,
         ALU_OR,
         ALU_AND,
         ALU_SLT,

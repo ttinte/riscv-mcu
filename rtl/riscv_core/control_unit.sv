@@ -126,6 +126,7 @@ module control_unit (
                             {FUNCT7_SUB,  FUNCT3_ADD_SUB}: ctrl_o.alu_op = ALU_SUB;
                             {FUNCT7_BASE, FUNCT3_SLT}:     ctrl_o.alu_op = ALU_SLT;
                             {FUNCT7_BASE, FUNCT3_SLTU}:    ctrl_o.alu_op = ALU_SLTU;
+                            {FUNCT7_BASE, FUNCT3_XOR}:     ctrl_o.alu_op = ALU_XOR;
                             {FUNCT7_BASE, FUNCT3_OR}:      ctrl_o.alu_op = ALU_OR;
                             {FUNCT7_BASE, FUNCT3_AND}:     ctrl_o.alu_op = ALU_AND;
                             default: ;
@@ -139,9 +140,15 @@ module control_unit (
                         ctrl_o.op_a_sel = OP_A_RS1;
                         ctrl_o.op_b_sel = OP_B_IMM;
 
-                        if (funct3 == FUNCT3_ADDI) begin
-                            ctrl_o.alu_op = ALU_ADD;
-                        end
+                        unique case(funct3)
+                            FUNCT3_ADDI:  ctrl_o.alu_op = ALU_ADD;
+                            FUNCT3_SLTI:  ctrl_o.alu_op = ALU_SLT;
+                            FUNCT3_SLTIU: ctrl_o.alu_op = ALU_SLTU;
+                            FUNCT3_XORI:  ctrl_o.alu_op = ALU_XOR;
+                            FUNCT3_ORI:   ctrl_o.alu_op = ALU_OR;
+                            FUNCT3_ANDI:  ctrl_o.alu_op = ALU_AND;
+                            default: ;
+                        endcase
                     end
 
                     OPCODE_LOAD: begin

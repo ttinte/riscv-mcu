@@ -22,6 +22,7 @@ module alu (
         unique case (alu_op_i)
             ALU_ADD:    alu_result_o = adder_result[31:0];
             ALU_SUB:    alu_result_o = adder_result[31:0];
+            ALU_XOR:    alu_result_o = operand_a_i ^ operand_b_i;
             ALU_OR:     alu_result_o = operand_a_i | operand_b_i;
             ALU_AND:    alu_result_o = operand_a_i & operand_b_i;
             ALU_SLT:    alu_result_o = {31'd0, adder_result[31] ^ alu_flags_o.overflow};
