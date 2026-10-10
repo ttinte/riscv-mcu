@@ -15,8 +15,7 @@ module alu (
                            (alu_op_i == ALU_SUB || alu_op_i == ALU_SLT || 
                             alu_op_i == ALU_SLTU ) ? ~operand_b_i : '0;
     assign adder_result  = {1'b0, operand_a_i} + {1'b0, operand_b_src} + 
-                           {32'd0, (alu_op_i == ALU_SUB || alu_op_i == ALU_SLT || 
-                                    alu_op_i == ALU_SLTU)};
+                           {32'd0, (alu_op_i == ALU_SUB || alu_op_i == ALU_SLT || alu_op_i == ALU_SLTU)};
 
     always_comb begin
         unique case (alu_op_i)
@@ -25,6 +24,9 @@ module alu (
             ALU_XOR:    alu_result_o = operand_a_i ^ operand_b_i;
             ALU_OR:     alu_result_o = operand_a_i | operand_b_i;
             ALU_AND:    alu_result_o = operand_a_i & operand_b_i;
+            ALU_SLL:    alu_result_o = operand_a_i << operand_b_i[4:0];
+            ALU_SRL:    alu_result_o = operand_a_i >> operand_b_i[4:0];
+            ALU_SRA:    alu_result_o = $signed(operand_a_i) >>> operand_b_i[4:0];
             ALU_SLT:    alu_result_o = {31'd0, adder_result[31] ^ alu_flags_o.overflow};
             ALU_SLTU:   alu_result_o = {31'd0, ~adder_result[32]};
             ALU_PASS_B: alu_result_o = operand_b_i;

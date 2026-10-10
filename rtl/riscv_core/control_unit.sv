@@ -10,39 +10,40 @@ module control_unit (
     output logic         trace_valid_o
 );
 
-    localparam logic [2:0] FUNCT3_ADD_SUB = 3'b000;     //OP
-    localparam logic [2:0] FUNCT3_SLT     = 3'b010;
-    localparam logic [2:0] FUNCT3_SLTU    = 3'b011;
-    localparam logic [2:0] FUNCT3_XOR     = 3'b100;
-    localparam logic [2:0] FUNCT3_OR      = 3'b110;
-    localparam logic [2:0] FUNCT3_AND     = 3'b111;
+    localparam logic [2:0] FUNCT3_ADD_SUB   = 3'b000;     //OP
+    localparam logic [2:0] FUNCT3_SLL       = 3'b001;
+    localparam logic [2:0] FUNCT3_SLT       = 3'b010;
+    localparam logic [2:0] FUNCT3_SLTU      = 3'b011;
+    localparam logic [2:0] FUNCT3_XOR       = 3'b100;
+    localparam logic [2:0] FUNCT3_SRL_SRA   = 3'b101;
+    localparam logic [2:0] FUNCT3_OR        = 3'b110;
+    localparam logic [2:0] FUNCT3_AND       = 3'b111;
 
-    localparam logic [6:0] FUNCT7_BASE    = 7'b000_0000;
-    localparam logic [6:0] FUNCT7_SUB     = 7'b010_0000;
+    localparam logic [2:0] FUNCT3_ADDI      = 3'b000;     //OP-IMM
+    localparam logic [2:0] FUNCT3_SLLI      = 3'b001;
+    localparam logic [2:0] FUNCT3_SLTI      = 3'b010;
+    localparam logic [2:0] FUNCT3_SLTIU     = 3'b011;
+    localparam logic [2:0] FUNCT3_XORI      = 3'b100;
+    localparam logic [2:0] FUNCT3_SRLI_SRAI = 3'b101;
+    localparam logic [2:0] FUNCT3_ORI       = 3'b110;
+    localparam logic [2:0] FUNCT3_ANDI      = 3'b111;
 
-    localparam logic [2:0] FUNCT3_ADDI    = 3'b000;     //OP-IMM
-    localparam logic [2:0] FUNCT3_SLTI    = 3'b010;
-    localparam logic [2:0] FUNCT3_SLTIU   = 3'b011;
-    localparam logic [2:0] FUNCT3_XORI    = 3'b100;
-    localparam logic [2:0] FUNCT3_ORI     = 3'b110;
-    localparam logic [2:0] FUNCT3_ANDI    = 3'b111;
+    localparam logic [2:0] FUNCT3_LB        = 3'b000;     //LOAD
+    localparam logic [2:0] FUNCT3_LH        = 3'b001;
+    localparam logic [2:0] FUNCT3_LW        = 3'b010;
+    localparam logic [2:0] FUNCT3_LBU       = 3'b100;
+    localparam logic [2:0] FUNCT3_LHU       = 3'b101;
+    localparam logic [2:0] FUNCT3_SB        = 3'b000;     //STORE
+    localparam logic [2:0] FUNCT3_SH        = 3'b001;
+    localparam logic [2:0] FUNCT3_SW        = 3'b010;
 
-    localparam logic [2:0] FUNCT3_LB      = 3'b000;     //LOAD
-    localparam logic [2:0] FUNCT3_LH      = 3'b001;
-    localparam logic [2:0] FUNCT3_LW      = 3'b010;
-    localparam logic [2:0] FUNCT3_LBU     = 3'b100;
-    localparam logic [2:0] FUNCT3_LHU     = 3'b101;
-    localparam logic [2:0] FUNCT3_SB      = 3'b000;     //STORE
-    localparam logic [2:0] FUNCT3_SH      = 3'b001;
-    localparam logic [2:0] FUNCT3_SW      = 3'b010;
-
-    localparam logic [2:0] FUNCT3_JALR    = 3'b000;     //JALR
-    localparam logic [2:0] FUNCT3_BEQ     = 3'b000;     //BRANCH
-    localparam logic [2:0] FUNCT3_BNE     = 3'b001;
-    localparam logic [2:0] FUNCT3_BLT     = 3'b100;
-    localparam logic [2:0] FUNCT3_BGE     = 3'b101;
-    localparam logic [2:0] FUNCT3_BLTU    = 3'b110;
-    localparam logic [2:0] FUNCT3_BGEU    = 3'b111;
+    localparam logic [2:0] FUNCT3_JALR      = 3'b000;     //JALR
+    localparam logic [2:0] FUNCT3_BEQ       = 3'b000;     //BRANCH
+    localparam logic [2:0] FUNCT3_BNE       = 3'b001;
+    localparam logic [2:0] FUNCT3_BLT       = 3'b100;
+    localparam logic [2:0] FUNCT3_BGE       = 3'b101;
+    localparam logic [2:0] FUNCT3_BLTU      = 3'b110;
+    localparam logic [2:0] FUNCT3_BGEU      = 3'b111;
 
     typedef enum logic [3:0] {
         ST_IF_REQ,
@@ -159,13 +160,16 @@ module control_unit (
                         ctrl_o.op_b_sel = OP_B_RS2;
 
                         unique case({funct7, funct3})
-                            {FUNCT7_BASE, FUNCT3_ADD_SUB}: ctrl_o.alu_op = ALU_ADD;
-                            {FUNCT7_SUB,  FUNCT3_ADD_SUB}: ctrl_o.alu_op = ALU_SUB;
-                            {FUNCT7_BASE, FUNCT3_SLT}:     ctrl_o.alu_op = ALU_SLT;
-                            {FUNCT7_BASE, FUNCT3_SLTU}:    ctrl_o.alu_op = ALU_SLTU;
-                            {FUNCT7_BASE, FUNCT3_XOR}:     ctrl_o.alu_op = ALU_XOR;
-                            {FUNCT7_BASE, FUNCT3_OR}:      ctrl_o.alu_op = ALU_OR;
-                            {FUNCT7_BASE, FUNCT3_AND}:     ctrl_o.alu_op = ALU_AND;
+                            {7'h00, FUNCT3_ADD_SUB}: ctrl_o.alu_op = ALU_ADD;
+                            {7'h20, FUNCT3_ADD_SUB}: ctrl_o.alu_op = ALU_SUB;
+                            {7'h00, FUNCT3_SLL}:     ctrl_o.alu_op = ALU_SLL;
+                            {7'h00, FUNCT3_SLT}:     ctrl_o.alu_op = ALU_SLT;
+                            {7'h00, FUNCT3_SLTU}:    ctrl_o.alu_op = ALU_SLTU;
+                            {7'h00, FUNCT3_XOR}:     ctrl_o.alu_op = ALU_XOR;
+                            {7'h00, FUNCT3_SRL_SRA}: ctrl_o.alu_op = ALU_SRL;
+                            {7'h20, FUNCT3_SRL_SRA}: ctrl_o.alu_op = ALU_SRA;
+                            {7'h00, FUNCT3_OR}:      ctrl_o.alu_op = ALU_OR;
+                            {7'h00, FUNCT3_AND}:     ctrl_o.alu_op = ALU_AND;
                             default: ;
                         endcase
                     end
@@ -184,6 +188,15 @@ module control_unit (
                             FUNCT3_XORI:  ctrl_o.alu_op = ALU_XOR;
                             FUNCT3_ORI:   ctrl_o.alu_op = ALU_OR;
                             FUNCT3_ANDI:  ctrl_o.alu_op = ALU_AND;
+                            FUNCT3_SLLI:  begin
+                                if (funct7 == 7'h00) ctrl_o.alu_op = ALU_SLL;
+                            end
+                            FUNCT3_SRLI_SRAI: begin
+                                if (funct7 == 7'h00) 
+                                    ctrl_o.alu_op = ALU_SRL;
+                                else if (funct7 == 7'h20) 
+                                    ctrl_o.alu_op = ALU_SRA;
+                            end
                             default: ;
                         endcase
                     end

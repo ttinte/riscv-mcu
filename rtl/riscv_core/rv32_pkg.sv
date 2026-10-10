@@ -37,10 +37,10 @@ package rv32_pkg;
     } load_op_e;
 
     typedef enum logic [2:0] {
-        STORE_BYTE  = 3'b000,
-        STORE_HALF  = 3'b001,
-        STORE_WORD  = 3'b010,
-        STORE_NONE  = 3'b111
+        STORE_BYTE = 3'b000,
+        STORE_HALF = 3'b001,
+        STORE_WORD = 3'b010,
+        STORE_NONE = 3'b111
     } store_op_e;
 
     typedef enum logic [2:0] {
@@ -64,15 +64,18 @@ package rv32_pkg;
         OP_B_IMM
     } op_b_sel_e;
 
-    typedef enum logic [2:0] {
-        ALU_ADD,
-        ALU_SUB,
-        ALU_XOR,
-        ALU_OR,
-        ALU_AND,
-        ALU_SLT,
-        ALU_SLTU,
-        ALU_PASS_B
+    typedef enum logic [3:0] {
+        ALU_ADD    = 4'b0_000,
+        ALU_SUB    = 4'b1_000,
+        ALU_SLL    = 4'b0_001,
+        ALU_SLT    = 4'b0_010,
+        ALU_SLTU   = 4'b0_011,
+        ALU_XOR    = 4'b0_100,
+        ALU_SRL    = 4'b0_101,
+        ALU_SRA    = 4'b1_101,
+        ALU_OR     = 4'b0_110,
+        ALU_AND    = 4'b0_111,
+        ALU_PASS_B = 4'b1_001
     } alu_op_e;
 
     typedef struct packed {
