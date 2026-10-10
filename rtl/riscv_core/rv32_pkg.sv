@@ -28,6 +28,22 @@ package rv32_pkg;
     } mem_addr_sel_e;
 
     typedef enum logic [2:0] {
+        LOAD_BYTE  = 3'b000,
+        LOAD_HALF  = 3'b001,
+        LOAD_WORD  = 3'b010,
+        LOAD_BYTEU = 3'b100,
+        LOAD_HALFU = 3'b101,
+        LOAD_NONE  = 3'b111
+    } load_op_e;
+
+    typedef enum logic [2:0] {
+        STORE_BYTE  = 3'b000,
+        STORE_HALF  = 3'b001,
+        STORE_WORD  = 3'b010,
+        STORE_NONE  = 3'b111
+    } store_op_e;
+
+    typedef enum logic [2:0] {
         IMM_NONE,
         IMM_I,
         IMM_S,
@@ -69,7 +85,7 @@ package rv32_pkg;
     typedef enum logic [1:0] {
         RESULT_ALU_COMB,
         RESULT_ALU_OUT_Q,
-        RESULT_MEM_DATA_Q
+        RESULT_LOAD_DATA_Q
     } result_sel_e;
 
     typedef struct packed {
@@ -78,6 +94,8 @@ package rv32_pkg;
         mem_addr_sel_e  mem_addr_sel;
         logic           mem_we;
         logic           mem_re;
+        load_op_e       load_op;
+        store_op_e      store_op;
         logic           ir_we;
         logic           reg_we;
         imm_sel_e       imm_sel;

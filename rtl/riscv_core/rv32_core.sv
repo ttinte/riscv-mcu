@@ -4,24 +4,25 @@ module rv32_core (
     input  logic        clk_i,
     input  logic        rst_ni,
 
-    output logic        mem_we_o,
+    output logic [3:0]  mem_wstrb_o,
     output logic        mem_re_o,
     output logic [31:0] mem_addr_o,
-    output logic [31:0] mem_wr_data_o,
-    input  logic [31:0] mem_rd_data_i,
+    output logic [31:0] mem_wdata_o,
+    input  logic [31:0] mem_rdata_i,
 
     output logic        trace_valid_o,
     output logic [31:0] trace_pc_o,
     output logic [31:0] trace_instr_o,
     output logic        trace_rf_we_o,
     output logic [4:0]  trace_rf_rd_o,
-    output logic [31:0] trace_rf_wr_data_o
+    output logic [31:0] trace_rf_wdata_o
 );
 
     decode_ctrl_t ctrl;
     logic         take_branch;
     branch_op_e   branch_op;
 
+    logic [31:0] load_data;
     logic [31:0] rs1_data;
     logic [31:0] rs2_data;
     logic [31:0] imm_ext;
@@ -36,7 +37,7 @@ module rv32_core (
     logic [31:0] pc_q;
     logic [31:0] old_pc_q;
     logic [31:0] instr_q;
-    logic [31:0] mem_rd_data_q;
+    logic [31:0] load_data_q;
     logic [31:0] rs1_data_q;
     logic [31:0] rs2_data_q;
     logic [31:0] alu_out_q;
@@ -46,16 +47,16 @@ module rv32_core (
             pc_q          <= '0;
             old_pc_q      <= '0;
             instr_q       <= '0;
-            mem_rd_data_q <= '0;
+            load_data_q   <= '0;
             rs1_data_q    <= '0;
             rs2_data_q    <= '0;
             alu_out_q     <= '0;
         end
         else begin
-            pc_q          <= ctrl.pc_we ? result        : pc_q;
-            old_pc_q      <= ctrl.ir_we ? pc_q          : old_pc_q;
-            instr_q       <= ctrl.ir_we ? mem_rd_data_i : instr_q;
-            mem_rd_data_q <= mem_rd_data_i;
+            pc_q          <= ctrl.pc_we ? result      : pc_q;
+            old_pc_q      <= ctrl.ir_we ? pc_q        : old_pc_q;
+            instr_q       <= ctrl.ir_we ? mem_rdata_i : instr_q;
+            load_data_q   <= load_data;
             rs1_data_q    <= rs1_data;
             rs2_data_q    <= rs2_data;
             alu_out_q     <= alu_result;
@@ -82,19 +83,14 @@ module rv32_core (
 
         if (ctrl.result_sel == RESULT_ALU_OUT_Q) begin
             result = ctrl.pc_clear_lsb ? {alu_out_q[31:1], 1'b0} : alu_out_q;
-        end else if (ctrl.result_sel == RESULT_MEM_DATA_Q) begin
-            result = mem_rd_data_q;
+        end else if (ctrl.result_sel == RESULT_LOAD_DATA_Q) begin
+            result = load_data_q;
         end
 
         if (ctrl.mem_addr_sel == MEM_ADDR_RESULT) begin
             mem_addr = result;
         end
     end
-
-    assign mem_we_o      = ctrl.mem_we;
-    assign mem_re_o      = ctrl.mem_re;
-    assign mem_addr_o    = mem_addr;
-    assign mem_wr_data_o = rs2_data_q;
 
     control_unit u_control_unit (
         .clk_i              (clk_i),
@@ -110,6 +106,22 @@ module rv32_core (
         .branch_op_i        (branch_op),
         .flags_i            (alu_flags),
         .take_branch_o      (take_branch)
+    );
+
+    assign mem_addr_o  = mem_addr;
+
+    lsu u_lsu (
+        .we_i               (ctrl.mem_we),
+        .re_i               (ctrl.mem_re),
+        .addr_lsb_i         (mem_addr[1:0]),
+        .load_op_i          (ctrl.load_op),
+        .store_op_i         (ctrl.store_op),
+        .mem_rdata_i        (mem_rdata_i),
+        .load_data_o        (load_data),
+        .mem_re_o           (mem_re_o),
+        .store_data_i       (rs2_data_q),
+        .mem_wdata_o        (mem_wdata_o),
+        .mem_wstrb_o        (mem_wstrb_o)
     );
 
     regfile u_regfile (
@@ -137,10 +149,10 @@ module rv32_core (
         .alu_flags_o        (alu_flags)
     );
 
-    assign trace_pc_o         = old_pc_q;
-    assign trace_instr_o      = instr_q;
-    assign trace_rf_we_o      = ctrl.reg_we && (instr_q[11:7] != 5'd0);
-    assign trace_rf_rd_o      = instr_q[11:7];
-    assign trace_rf_wr_data_o = result;
+    assign trace_pc_o       = old_pc_q;
+    assign trace_instr_o    = instr_q;
+    assign trace_rf_we_o    = ctrl.reg_we && (instr_q[11:7] != 5'd0);
+    assign trace_rf_rd_o    = instr_q[11:7];
+    assign trace_rf_wdata_o = result;
 
 endmodule

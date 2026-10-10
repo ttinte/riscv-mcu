@@ -16,24 +16,33 @@ module control_unit (
     localparam logic [2:0] FUNCT3_XOR     = 3'b100;
     localparam logic [2:0] FUNCT3_OR      = 3'b110;
     localparam logic [2:0] FUNCT3_AND     = 3'b111;
+
+    localparam logic [6:0] FUNCT7_BASE    = 7'b000_0000;
+    localparam logic [6:0] FUNCT7_SUB     = 7'b010_0000;
+
     localparam logic [2:0] FUNCT3_ADDI    = 3'b000;     //OP-IMM
     localparam logic [2:0] FUNCT3_SLTI    = 3'b010;
     localparam logic [2:0] FUNCT3_SLTIU   = 3'b011;
     localparam logic [2:0] FUNCT3_XORI    = 3'b100;
     localparam logic [2:0] FUNCT3_ORI     = 3'b110;
     localparam logic [2:0] FUNCT3_ANDI    = 3'b111;
+
+    localparam logic [2:0] FUNCT3_LB      = 3'b000;     //LOAD
+    localparam logic [2:0] FUNCT3_LH      = 3'b001;
+    localparam logic [2:0] FUNCT3_LW      = 3'b010;
+    localparam logic [2:0] FUNCT3_LBU     = 3'b100;
+    localparam logic [2:0] FUNCT3_LHU     = 3'b101;
+    localparam logic [2:0] FUNCT3_SB      = 3'b000;     //STORE
+    localparam logic [2:0] FUNCT3_SH      = 3'b001;
+    localparam logic [2:0] FUNCT3_SW      = 3'b010;
+
     localparam logic [2:0] FUNCT3_JALR    = 3'b000;     //JALR
-    localparam logic [2:0] FUNCT3_LW      = 3'b010;     //LOAD
-    localparam logic [2:0] FUNCT3_SW      = 3'b010;     //STORE
     localparam logic [2:0] FUNCT3_BEQ     = 3'b000;     //BRANCH
     localparam logic [2:0] FUNCT3_BNE     = 3'b001;
     localparam logic [2:0] FUNCT3_BLT     = 3'b100;
     localparam logic [2:0] FUNCT3_BGE     = 3'b101;
     localparam logic [2:0] FUNCT3_BLTU    = 3'b110;
     localparam logic [2:0] FUNCT3_BGEU    = 3'b111;
-
-    localparam logic [6:0] FUNCT7_BASE = 7'b000_0000;   //OP
-    localparam logic [6:0] FUNCT7_SUB  = 7'b010_0000;
 
     typedef enum logic [3:0] {
         ST_IF_REQ,
@@ -64,6 +73,8 @@ module control_unit (
         ctrl_o.mem_addr_sel = MEM_ADDR_PC;
         ctrl_o.mem_we       = 1'b0;
         ctrl_o.mem_re       = 1'b0;
+        ctrl_o.load_op      = LOAD_NONE;
+        ctrl_o.store_op     = STORE_NONE;
         ctrl_o.ir_we        = 1'b0;
         ctrl_o.reg_we       = 1'b0;
         ctrl_o.imm_sel      = IMM_NONE;
@@ -237,8 +248,14 @@ module control_unit (
             ST_LD_RESP: begin
                 state_d = ST_WB;
 
-                ctrl_o.mem_addr_sel = MEM_ADDR_RESULT;
-                ctrl_o.result_sel   = RESULT_ALU_OUT_Q;
+                unique case (funct3)
+                    FUNCT3_LB:  ctrl_o.load_op = LOAD_BYTE;
+                    FUNCT3_LH:  ctrl_o.load_op = LOAD_HALF;
+                    FUNCT3_LW:  ctrl_o.load_op = LOAD_WORD;
+                    FUNCT3_LBU: ctrl_o.load_op = LOAD_BYTEU;
+                    FUNCT3_LHU: ctrl_o.load_op = LOAD_HALFU;
+                    default: ;
+                endcase
             end
 
             ST_ST: begin
@@ -247,6 +264,13 @@ module control_unit (
                 ctrl_o.mem_addr_sel = MEM_ADDR_RESULT;
                 ctrl_o.mem_we       = 1'b1;
                 ctrl_o.result_sel   = RESULT_ALU_OUT_Q;
+
+                unique case(funct3)
+                    FUNCT3_SB: ctrl_o.store_op = STORE_BYTE;
+                    FUNCT3_SH: ctrl_o.store_op = STORE_HALF;
+                    FUNCT3_SW: ctrl_o.store_op = STORE_WORD;
+                    default: ;
+                endcase
             end
 
             ST_WB: begin
@@ -257,7 +281,7 @@ module control_unit (
                 unique case (opcode)
                     OPCODE_OP:     ctrl_o.result_sel = RESULT_ALU_OUT_Q;
                     OPCODE_OP_IMM: ctrl_o.result_sel = RESULT_ALU_OUT_Q;
-                    OPCODE_LOAD:   ctrl_o.result_sel = RESULT_MEM_DATA_Q;
+                    OPCODE_LOAD:   ctrl_o.result_sel = RESULT_LOAD_DATA_Q;
                     OPCODE_AUIPC:  ctrl_o.result_sel = RESULT_ALU_OUT_Q;
                     OPCODE_LUI:    ctrl_o.result_sel = RESULT_ALU_OUT_Q;
                     OPCODE_JALR:   ctrl_o.result_sel = RESULT_ALU_OUT_Q;
