@@ -58,15 +58,36 @@ module control_unit (
     } state_e;
 
     state_e state_q, state_d;
-
     logic [6:0] opcode;
     logic [2:0] funct3;
     logic [6:0] funct7;
+
+    logic is_op;
+    logic is_op_imm;
+    logic is_load;
+    logic is_store;
+    logic is_branch;
+    logic is_auipc;
+    logic is_lui;
+    logic is_jalr;
+    logic is_jal;
 
     assign opcode = instr_i[6:0];
     assign funct3 = instr_i[14:12];
     assign funct7 = instr_i[31:25];
 
+    assign is_op     = (opcode == OPCODE_OP);
+    assign is_op_imm = (opcode == OPCODE_OP_IMM);
+    assign is_load   = (opcode == OPCODE_LOAD);
+    assign is_store  = (opcode == OPCODE_STORE);
+    assign is_branch = (opcode == OPCODE_BRANCH);
+    assign is_auipc  = (opcode == OPCODE_AUIPC);
+    assign is_lui    = (opcode == OPCODE_LUI);
+    assign is_jalr   = (opcode == OPCODE_JALR);
+    assign is_jal    = (opcode == OPCODE_JAL);
+
+
+    // main fsm
     always_comb begin
         state_d             = state_q;
         ctrl_o.pc_we        = 1'b0;
@@ -101,46 +122,42 @@ module control_unit (
             ST_ID: begin
                 state_d = ST_EX;
 
-                unique case (opcode)
-                    OPCODE_BRANCH: begin
-                        if (funct3 == FUNCT3_BEQ || funct3 == FUNCT3_BNE  || funct3 == FUNCT3_BLT  || 
-                            funct3 == FUNCT3_BGE || funct3 == FUNCT3_BLTU || funct3 == FUNCT3_BGEU) begin
-                            ctrl_o.imm_sel  = IMM_B;
-                            ctrl_o.op_a_sel = OP_A_OLD_PC;
-                            ctrl_o.op_b_sel = OP_B_IMM;
-                        end
-                    end
-
-                    OPCODE_AUIPC: begin
-                        state_d = ST_WB;
-
-                        ctrl_o.imm_sel  = IMM_U;
+                if (is_branch) begin
+                    if (funct3 == FUNCT3_BEQ || funct3 == FUNCT3_BNE  || funct3 == FUNCT3_BLT  ||
+                        funct3 == FUNCT3_BGE || funct3 == FUNCT3_BLTU || funct3 == FUNCT3_BGEU) begin
+                        ctrl_o.imm_sel  = IMM_B;
                         ctrl_o.op_a_sel = OP_A_OLD_PC;
                         ctrl_o.op_b_sel = OP_B_IMM;
                     end
+                end
 
-                    OPCODE_LUI: begin
-                        state_d = ST_WB;
+                if (is_auipc) begin
+                    state_d = ST_WB;
 
-                        ctrl_o.imm_sel  = IMM_U;
-                        ctrl_o.op_b_sel = OP_B_IMM;
-                        ctrl_o.alu_op   = ALU_PASS_B;
+                    ctrl_o.imm_sel  = IMM_U;
+                    ctrl_o.op_a_sel = OP_A_OLD_PC;
+                    ctrl_o.op_b_sel = OP_B_IMM;
+                end
+
+                if (is_lui) begin
+                    state_d = ST_WB;
+
+                    ctrl_o.imm_sel  = IMM_U;
+                    ctrl_o.op_b_sel = OP_B_IMM;
+                    ctrl_o.alu_op   = ALU_PASS_B;
+                end
+
+                if (is_jalr) begin
+                    if (funct3 == FUNCT3_JALR) begin
+                        state_d = ST_JALR_TARGET;
                     end
+                end
 
-                    OPCODE_JALR: begin
-                        if (funct3 == FUNCT3_JALR) begin
-                            state_d = ST_JALR_TARGET;
-                        end
-                    end
-
-                    OPCODE_JAL: begin
-                        ctrl_o.imm_sel  = IMM_J;
-                        ctrl_o.op_a_sel = OP_A_OLD_PC;
-                        ctrl_o.op_b_sel = OP_B_IMM;
-                    end
-
-                    default: ;
-                endcase
+                if (is_jal) begin
+                    ctrl_o.imm_sel  = IMM_J;
+                    ctrl_o.op_a_sel = OP_A_OLD_PC;
+                    ctrl_o.op_b_sel = OP_B_IMM;
+                end
             end
 
             ST_JALR_TARGET: begin
@@ -152,102 +169,98 @@ module control_unit (
             end
 
             ST_EX: begin
-                unique case (opcode)
-                    OPCODE_OP: begin
-                        state_d = ST_WB;
+                if (is_op) begin
+                    state_d = ST_WB;
 
-                        ctrl_o.op_a_sel = OP_A_RS1;
-                        ctrl_o.op_b_sel = OP_B_RS2;
+                    ctrl_o.op_a_sel = OP_A_RS1;
+                    ctrl_o.op_b_sel = OP_B_RS2;
 
-                        unique case({funct7, funct3})
-                            {7'h00, FUNCT3_ADD_SUB}: ctrl_o.alu_op = ALU_ADD;
-                            {7'h20, FUNCT3_ADD_SUB}: ctrl_o.alu_op = ALU_SUB;
-                            {7'h00, FUNCT3_SLL}:     ctrl_o.alu_op = ALU_SLL;
-                            {7'h00, FUNCT3_SLT}:     ctrl_o.alu_op = ALU_SLT;
-                            {7'h00, FUNCT3_SLTU}:    ctrl_o.alu_op = ALU_SLTU;
-                            {7'h00, FUNCT3_XOR}:     ctrl_o.alu_op = ALU_XOR;
-                            {7'h00, FUNCT3_SRL_SRA}: ctrl_o.alu_op = ALU_SRL;
-                            {7'h20, FUNCT3_SRL_SRA}: ctrl_o.alu_op = ALU_SRA;
-                            {7'h00, FUNCT3_OR}:      ctrl_o.alu_op = ALU_OR;
-                            {7'h00, FUNCT3_AND}:     ctrl_o.alu_op = ALU_AND;
-                            default: ;
-                        endcase
-                    end
+                    unique case({funct7, funct3})
+                        {7'h00, FUNCT3_ADD_SUB}: ctrl_o.alu_op = ALU_ADD;
+                        {7'h20, FUNCT3_ADD_SUB}: ctrl_o.alu_op = ALU_SUB;
+                        {7'h00, FUNCT3_SLL}:     ctrl_o.alu_op = ALU_SLL;
+                        {7'h00, FUNCT3_SLT}:     ctrl_o.alu_op = ALU_SLT;
+                        {7'h00, FUNCT3_SLTU}:    ctrl_o.alu_op = ALU_SLTU;
+                        {7'h00, FUNCT3_XOR}:     ctrl_o.alu_op = ALU_XOR;
+                        {7'h00, FUNCT3_SRL_SRA}: ctrl_o.alu_op = ALU_SRL;
+                        {7'h20, FUNCT3_SRL_SRA}: ctrl_o.alu_op = ALU_SRA;
+                        {7'h00, FUNCT3_OR}:      ctrl_o.alu_op = ALU_OR;
+                        {7'h00, FUNCT3_AND}:     ctrl_o.alu_op = ALU_AND;
+                        default: ;
+                    endcase
+                end
 
-                    OPCODE_OP_IMM: begin
-                        state_d = ST_WB;
+                else if (is_op_imm) begin
+                    state_d = ST_WB;
 
-                        ctrl_o.imm_sel  = IMM_I;
-                        ctrl_o.op_a_sel = OP_A_RS1;
-                        ctrl_o.op_b_sel = OP_B_IMM;
+                    ctrl_o.imm_sel  = IMM_I;
+                    ctrl_o.op_a_sel = OP_A_RS1;
+                    ctrl_o.op_b_sel = OP_B_IMM;
 
-                        unique case(funct3)
-                            FUNCT3_ADDI:  ctrl_o.alu_op = ALU_ADD;
-                            FUNCT3_SLTI:  ctrl_o.alu_op = ALU_SLT;
-                            FUNCT3_SLTIU: ctrl_o.alu_op = ALU_SLTU;
-                            FUNCT3_XORI:  ctrl_o.alu_op = ALU_XOR;
-                            FUNCT3_ORI:   ctrl_o.alu_op = ALU_OR;
-                            FUNCT3_ANDI:  ctrl_o.alu_op = ALU_AND;
-                            FUNCT3_SLLI:  begin
-                                if (funct7 == 7'h00) ctrl_o.alu_op = ALU_SLL;
-                            end
-                            FUNCT3_SRLI_SRAI: begin
-                                if (funct7 == 7'h00) 
-                                    ctrl_o.alu_op = ALU_SRL;
-                                else if (funct7 == 7'h20) 
-                                    ctrl_o.alu_op = ALU_SRA;
-                            end
-                            default: ;
-                        endcase
-                    end
+                    unique case(funct3)
+                        FUNCT3_ADDI:  ctrl_o.alu_op = ALU_ADD;
+                        FUNCT3_SLTI:  ctrl_o.alu_op = ALU_SLT;
+                        FUNCT3_SLTIU: ctrl_o.alu_op = ALU_SLTU;
+                        FUNCT3_XORI:  ctrl_o.alu_op = ALU_XOR;
+                        FUNCT3_ORI:   ctrl_o.alu_op = ALU_OR;
+                        FUNCT3_ANDI:  ctrl_o.alu_op = ALU_AND;
+                        FUNCT3_SLLI:  begin
+                            if (funct7 == 7'h00) ctrl_o.alu_op = ALU_SLL;
+                        end
+                        FUNCT3_SRLI_SRAI: begin
+                            if (funct7 == 7'h00)
+                                ctrl_o.alu_op = ALU_SRL;
+                            else if (funct7 == 7'h20)
+                                ctrl_o.alu_op = ALU_SRA;
+                        end
+                        default: ;
+                    endcase
+                end
 
-                    OPCODE_LOAD: begin
-                        state_d = ST_LD_REQ;
+                else if (is_load) begin
+                    state_d = ST_LD_REQ;
 
-                        ctrl_o.imm_sel  = IMM_I;
-                        ctrl_o.op_a_sel = OP_A_RS1;
-                        ctrl_o.op_b_sel = OP_B_IMM;
-                    end
+                    ctrl_o.imm_sel  = IMM_I;
+                    ctrl_o.op_a_sel = OP_A_RS1;
+                    ctrl_o.op_b_sel = OP_B_IMM;
+                end
 
-                    OPCODE_STORE: begin
-                        state_d = ST_ST;
+                else if (is_store) begin
+                    state_d = ST_ST;
 
-                        ctrl_o.imm_sel  = IMM_S;
-                        ctrl_o.op_a_sel = OP_A_RS1;
-                        ctrl_o.op_b_sel = OP_B_IMM;
-                    end
+                    ctrl_o.imm_sel  = IMM_S;
+                    ctrl_o.op_a_sel = OP_A_RS1;
+                    ctrl_o.op_b_sel = OP_B_IMM;
+                end
 
-                    OPCODE_BRANCH: begin
-                        state_d = ST_IF_REQ;
+                else if (is_branch) begin
+                    state_d = ST_IF_REQ;
 
-                        ctrl_o.pc_we      = take_branch_i;
-                        ctrl_o.op_a_sel   = OP_A_RS1;
-                        ctrl_o.op_b_sel   = OP_B_RS2;
-                        ctrl_o.alu_op     = ALU_SUB;
-                        ctrl_o.result_sel = RESULT_ALU_OUT_Q;
-                    end
+                    ctrl_o.pc_we      = take_branch_i;
+                    ctrl_o.op_a_sel   = OP_A_RS1;
+                    ctrl_o.op_b_sel   = OP_B_RS2;
+                    ctrl_o.alu_op     = ALU_SUB;
+                    ctrl_o.result_sel = RESULT_ALU_OUT_Q;
+                end
 
-                    OPCODE_JALR: begin
-                        state_d = ST_WB;
+                else if (is_jalr) begin
+                    state_d = ST_WB;
 
-                        ctrl_o.pc_we        = 1'b1;
-                        ctrl_o.pc_clear_lsb = 1'b1;
-                        ctrl_o.op_a_sel     = OP_A_OLD_PC;
-                        ctrl_o.op_b_sel     = OP_B_FOUR;
-                        ctrl_o.result_sel   = RESULT_ALU_OUT_Q;
-                    end
+                    ctrl_o.pc_we        = 1'b1;
+                    ctrl_o.pc_clear_lsb = 1'b1;
+                    ctrl_o.op_a_sel     = OP_A_OLD_PC;
+                    ctrl_o.op_b_sel     = OP_B_FOUR;
+                    ctrl_o.result_sel   = RESULT_ALU_OUT_Q;
+                end
 
-                    OPCODE_JAL: begin
-                        state_d = ST_WB;
+                else if (is_jal) begin
+                    state_d = ST_WB;
 
-                        ctrl_o.pc_we        = 1'b1;
-                        ctrl_o.op_a_sel     = OP_A_OLD_PC;
-                        ctrl_o.op_b_sel     = OP_B_FOUR;
-                        ctrl_o.result_sel   = RESULT_ALU_OUT_Q;
-                    end
-                    
-                    default: ;
-                endcase
+                    ctrl_o.pc_we        = 1'b1;
+                    ctrl_o.op_a_sel     = OP_A_OLD_PC;
+                    ctrl_o.op_b_sel     = OP_B_FOUR;
+                    ctrl_o.result_sel   = RESULT_ALU_OUT_Q;
+                end
             end
 
             ST_LD_REQ: begin
@@ -290,17 +303,9 @@ module control_unit (
                 state_d = ST_IF_REQ;
 
                 ctrl_o.reg_we = 1'b1;
-                
-                unique case (opcode)
-                    OPCODE_OP:     ctrl_o.result_sel = RESULT_ALU_OUT_Q;
-                    OPCODE_OP_IMM: ctrl_o.result_sel = RESULT_ALU_OUT_Q;
-                    OPCODE_LOAD:   ctrl_o.result_sel = RESULT_LOAD_DATA_Q;
-                    OPCODE_AUIPC:  ctrl_o.result_sel = RESULT_ALU_OUT_Q;
-                    OPCODE_LUI:    ctrl_o.result_sel = RESULT_ALU_OUT_Q;
-                    OPCODE_JALR:   ctrl_o.result_sel = RESULT_ALU_OUT_Q;
-                    OPCODE_JAL:    ctrl_o.result_sel = RESULT_ALU_OUT_Q;
-                    default: ;
-                endcase
+                ctrl_o.result_sel = RESULT_ALU_OUT_Q;
+
+                if (is_load) ctrl_o.result_sel = RESULT_LOAD_DATA_Q;
             end
 
             default: ;
@@ -319,7 +324,7 @@ module control_unit (
     always_comb begin
         branch_op_o = BRANCH_NONE;
 
-        if (opcode == OPCODE_BRANCH) begin
+        if (is_branch) begin
             unique case (funct3)
                 FUNCT3_BEQ:  branch_op_o = BRANCH_EQ;
                 FUNCT3_BNE:  branch_op_o = BRANCH_NE;
@@ -333,6 +338,6 @@ module control_unit (
     end
 
     assign trace_valid_o = (state_q == ST_WB) || (state_q == ST_ST) ||
-                           ((state_q == ST_EX) && (opcode == OPCODE_BRANCH));
+                           ((state_q == ST_EX) && is_branch);
 
 endmodule

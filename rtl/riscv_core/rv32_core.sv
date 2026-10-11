@@ -88,7 +88,7 @@ module rv32_core (
         end
 
         if (ctrl.mem_addr_sel == MEM_ADDR_RESULT) begin
-            mem_addr = result;
+            mem_addr = alu_out_q;
         end
     end
 

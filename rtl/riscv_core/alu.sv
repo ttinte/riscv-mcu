@@ -34,8 +34,8 @@ module alu (
         endcase
     end
 
-    assign alu_flags_o.zero     = alu_result_o == '0;
-    assign alu_flags_o.sign     = alu_result_o[31];
+    assign alu_flags_o.zero     = (operand_a_i == operand_b_i);
+    assign alu_flags_o.sign     = adder_result[31];
     assign alu_flags_o.carry    = adder_result[32];
     assign alu_flags_o.overflow = ~(operand_a_i[31] ^ operand_b_src[31]) & 
                                   (operand_a_i[31] ^ adder_result[31]);
