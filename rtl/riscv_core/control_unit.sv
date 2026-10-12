@@ -86,7 +86,6 @@ module control_unit (
     assign is_jalr   = (opcode == OPCODE_JALR);
     assign is_jal    = (opcode == OPCODE_JAL);
 
-
     // main fsm
     always_comb begin
         state_d             = state_q;
@@ -97,10 +96,11 @@ module control_unit (
         ctrl_o.mem_re       = 1'b0;
         ctrl_o.load_op      = LOAD_NONE;
         ctrl_o.store_op     = STORE_NONE;
+        ctrl_o.old_pc_we    = 1'b0;
         ctrl_o.ir_we        = 1'b0;
         ctrl_o.reg_we       = 1'b0;
         ctrl_o.imm_sel      = IMM_NONE;
-        ctrl_o.op_a_sel     = OP_A_PC;
+        ctrl_o.op_a_sel     = OP_A_OLD_PC;
         ctrl_o.op_b_sel     = OP_B_FOUR;
         ctrl_o.alu_op       = ALU_ADD;
         ctrl_o.result_sel   = RESULT_ALU_COMB;
@@ -109,13 +109,14 @@ module control_unit (
             ST_IF_REQ: begin
                 state_d = ST_IF_RESP;
 
-                ctrl_o.mem_re = 1'b1;
+                ctrl_o.old_pc_we = 1'b1;
+                ctrl_o.mem_re    = 1'b1;
             end
 
             ST_IF_RESP: begin
                 state_d = ST_ID;
 
-                ctrl_o.pc_we  = 1'b1;
+                ctrl_o.pc_we = 1'b1;
                 ctrl_o.ir_we = 1'b1;
             end
 
@@ -123,12 +124,9 @@ module control_unit (
                 state_d = ST_EX;
 
                 if (is_branch) begin
-                    if (funct3 == FUNCT3_BEQ || funct3 == FUNCT3_BNE  || funct3 == FUNCT3_BLT  ||
-                        funct3 == FUNCT3_BGE || funct3 == FUNCT3_BLTU || funct3 == FUNCT3_BGEU) begin
-                        ctrl_o.imm_sel  = IMM_B;
-                        ctrl_o.op_a_sel = OP_A_OLD_PC;
-                        ctrl_o.op_b_sel = OP_B_IMM;
-                    end
+                    ctrl_o.imm_sel  = IMM_B;
+                    ctrl_o.op_a_sel = OP_A_OLD_PC;
+                    ctrl_o.op_b_sel = OP_B_IMM;
                 end
 
                 if (is_auipc) begin

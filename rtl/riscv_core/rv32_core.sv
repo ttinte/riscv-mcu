@@ -53,9 +53,9 @@ module rv32_core (
             alu_out_q     <= '0;
         end
         else begin
-            pc_q          <= ctrl.pc_we ? result      : pc_q;
-            old_pc_q      <= ctrl.ir_we ? pc_q        : old_pc_q;
-            instr_q       <= ctrl.ir_we ? mem_rdata_i : instr_q;
+            pc_q          <= ctrl.pc_we     ? result      : pc_q;
+            old_pc_q      <= ctrl.old_pc_we ? pc_q        : old_pc_q;
+            instr_q       <= ctrl.ir_we     ? mem_rdata_i : instr_q;
             load_data_q   <= load_data;
             rs1_data_q    <= rs1_data;
             rs2_data_q    <= rs2_data;
@@ -65,13 +65,11 @@ module rv32_core (
 
     always_comb begin
         mem_addr  = pc_q;
-        operand_a = pc_q;
+        operand_a = old_pc_q;
         operand_b = 32'd4;
         result    = alu_result;
 
-        if (ctrl.op_a_sel == OP_A_OLD_PC) begin
-            operand_a = old_pc_q;
-        end else if (ctrl.op_a_sel == OP_A_RS1) begin
+        if (ctrl.op_a_sel == OP_A_RS1) begin
             operand_a = rs1_data_q;
         end
 

@@ -52,8 +52,7 @@ package rv32_pkg;
         IMM_J
     } imm_sel_e;
 
-    typedef enum logic [1:0] {
-        OP_A_PC,
+    typedef enum logic {
         OP_A_OLD_PC,
         OP_A_RS1
     } op_a_sel_e;
@@ -99,6 +98,7 @@ package rv32_pkg;
         logic           mem_re;
         load_op_e       load_op;
         store_op_e      store_op;
+        logic           old_pc_we;
         logic           ir_we;
         logic           reg_we;
         imm_sel_e       imm_sel;
