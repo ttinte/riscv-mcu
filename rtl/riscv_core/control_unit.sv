@@ -96,20 +96,18 @@ module control_unit (
         ctrl_o.mem_re       = 1'b0;
         ctrl_o.load_op      = LOAD_NONE;
         ctrl_o.store_op     = STORE_NONE;
-        ctrl_o.old_pc_we    = 1'b0;
         ctrl_o.ir_we        = 1'b0;
         ctrl_o.reg_we       = 1'b0;
         ctrl_o.imm_sel      = IMM_NONE;
-        ctrl_o.op_a_sel     = OP_A_OLD_PC;
+        ctrl_o.op_a_sel     = OP_A_PC;
         ctrl_o.op_b_sel     = OP_B_FOUR;
         ctrl_o.alu_op       = ALU_ADD;
-        ctrl_o.result_sel   = RESULT_ALU_COMB;
+        ctrl_o.result_sel   = RESULT_ALU_OUT_Q;
 
         unique case (state_q)
             ST_IF_REQ: begin
                 state_d = ST_IF_RESP;
 
-                ctrl_o.old_pc_we = 1'b1;
                 ctrl_o.mem_re    = 1'b1;
             end
 
