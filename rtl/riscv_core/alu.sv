@@ -8,14 +8,13 @@ module alu (
     output alu_flags_t  alu_flags_o
 ); 
 
+    logic        sub_en;
     logic [31:0] operand_b_src;
     logic [32:0] adder_result;
 
-    assign operand_b_src = (alu_op_i == ALU_ADD) ? operand_b_i :
-                           (alu_op_i == ALU_SUB || alu_op_i == ALU_SLT || 
-                            alu_op_i == ALU_SLTU ) ? ~operand_b_i : '0;
-    assign adder_result  = {1'b0, operand_a_i} + {1'b0, operand_b_src} + 
-                           {32'd0, (alu_op_i == ALU_SUB || alu_op_i == ALU_SLT || alu_op_i == ALU_SLTU)};
+    assign sub_en = (alu_op_i == ALU_SUB || alu_op_i == ALU_SLT || alu_op_i == ALU_SLTU);
+    assign operand_b_src = operand_b_i ^ {32{sub_en}};
+    assign adder_result  = {1'b0, operand_a_i} + {1'b0, operand_b_src} + {32'd0, sub_en};
 
     always_comb begin
         unique case (alu_op_i)
