@@ -1,7 +1,7 @@
 # ===== RTL sources =====
-rtl/common/baud_gen.sv
-rtl/uart_tx/uart_tx_core.sv
-rtl/uart_tx/uart_tx.sv
+rtl/peripherals/uart/baud_gen.sv
+rtl/peripherals/uart/uart_tx_core.sv
+rtl/peripherals/uart/uart_tx.sv
 
 # ===== Testbench =====
 dv/uart_tx_tb.sv

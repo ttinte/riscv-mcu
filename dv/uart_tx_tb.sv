@@ -2,14 +2,14 @@
 
 module uart_tx_tb;
 
-    localparam int CLOCK_RATE = 100_000_000;
-    localparam int BAUD_RATE  = 115_200;
+    localparam int unsigned CLOCK_RATE = 100_000_000;
+    localparam int unsigned BAUD_RATE  = 115_200;
 
     localparam time CLK_PERIOD = 10ns;
     localparam time BIT_PERIOD = 1s / BAUD_RATE;
 
     logic clk;
-    logic rst;
+    logic rst_n;
     logic [7:0] i_tx_data;
     logic i_tx_data_valid;
     logic i_tx_data_ready;
@@ -22,12 +22,12 @@ module uart_tx_tb;
         .CLOCK_RATE (CLOCK_RATE),
         .BAUD_RATE  (BAUD_RATE)
     ) dut (
-        .clk            (clk),
-        .rst            (rst),
-        .tx_data        (i_tx_data),
-        .tx_data_valid  (i_tx_data_valid),
-        .tx_data_ready  (i_tx_data_ready),
-        .txd            (o_txd)
+        .clk_i              (clk),
+        .rst_ni             (rst_n),
+        .tx_data_i          (i_tx_data),
+        .tx_data_valid_i    (i_tx_data_valid),
+        .tx_data_ready_o    (i_tx_data_ready),
+        .txd_o              (o_txd)
     );
 
     // =========================================================
@@ -39,11 +39,11 @@ module uart_tx_tb;
     end
 
     task automatic apply_reset();
-        rst             = 1'b1;
+        rst_n           = 1'b0;
         i_tx_data       = '0;
         i_tx_data_valid = 1'b0;
         repeat (10) @(posedge clk);
-        rst = 1'b0;
+        rst_n = 1'b1;
         repeat (10) @(posedge clk);
     endtask
 

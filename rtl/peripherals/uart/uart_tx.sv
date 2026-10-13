@@ -9,8 +9,8 @@
 //-----------------------------------------------------------------------------
 
 module uart_tx #(
-    parameter int CLOCK_RATE = 100_000_000,
-    parameter int BAUD_RATE  = 115_200
+    parameter int unsigned CLOCK_RATE = 100_000_000,
+    parameter int unsigned BAUD_RATE  = 115_200
 )(
     input  logic       clk_i,
     input  logic       rst_ni,

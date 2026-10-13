@@ -8,8 +8,8 @@
 //-----------------------------------------------------------------------------
 
 module baud_gen #(
-    parameter int CLOCK_RATE = 100_000_000,
-    parameter int BAUD_RATE  = 115_200
+    parameter int unsigned CLOCK_RATE = 100_000_000,
+    parameter int unsigned BAUD_RATE  = 115_200
 )(
     input  logic clk_i,
     input  logic rst_ni,
@@ -25,9 +25,9 @@ module baud_gen #(
             $fatal(1, "CLOCK_RATE must be at least 16 times BAUD_RATE");
     end
 
-    localparam int OVERSAMPLE_RATE = 16 * BAUD_RATE;
-    localparam int DIVIDER         = (CLOCK_RATE + OVERSAMPLE_RATE/2) / OVERSAMPLE_RATE;
-    localparam int CNT_WIDTH       = $clog2(DIVIDER);
+    localparam int unsigned OVERSAMPLE_RATE = 16 * BAUD_RATE;
+    localparam int unsigned DIVIDER         = (CLOCK_RATE + OVERSAMPLE_RATE/2) / OVERSAMPLE_RATE;
+    localparam int unsigned CNT_WIDTH       = (DIVIDER > 1) ? $clog2(DIVIDER) : 1;
 
     logic [CNT_WIDTH-1:0] cnt;
 

@@ -1,8 +1,7 @@
 module uart_wrapper #(
-    parameter int CLOCK_RATE = 100_000_000,
-    parameter int BAUD_RATE  = 115_200,
-    parameter int WIDTH      = 8,
-    parameter int DEPTH      = 16
+    parameter int unsigned CLOCK_RATE = 100_000_000,
+    parameter int unsigned BAUD_RATE  = 115_200,
+    parameter int unsigned FIFO_DEPTH = 16
 )(
     input  logic        clk_i,
     input  logic        rst_ni,
@@ -19,6 +18,8 @@ module uart_wrapper #(
     input  logic        rxd_async_i
 );
 
+    localparam int unsigned WIDTH = 8;
+
     // uart_tx channel
 
     logic             tx_fifo_re;
@@ -31,7 +32,7 @@ module uart_wrapper #(
 
     sync_fifo #(
         .WIDTH              (WIDTH),
-        .DEPTH              (DEPTH)
+        .DEPTH              (FIFO_DEPTH)
     ) u_fifo_tx (
         .clk_i              (clk_i),
         .rst_ni             (rst_ni),
@@ -94,7 +95,7 @@ module uart_wrapper #(
 
     sync_fifo #(
         .WIDTH              (WIDTH),
-        .DEPTH              (DEPTH)
+        .DEPTH              (FIFO_DEPTH)
     ) u_rx_fifo (
         .clk_i              (clk_i),
         .rst_ni             (rst_ni),

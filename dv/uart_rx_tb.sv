@@ -2,14 +2,14 @@
 
 module uart_rx_tb;
 
-    localparam int CLOCK_RATE = 100_000_000;
-    localparam int BAUD_RATE  = 115_200;
+    localparam int unsigned CLOCK_RATE = 100_000_000;
+    localparam int unsigned BAUD_RATE  = 115_200;
 
     localparam time CLK_PERIOD = 10ns;
     localparam time BIT_PERIOD = 1s / BAUD_RATE;
 
     logic clk;
-    logic rst;
+    logic rst_n;
     logic i_rxd_async;
 
     logic [7:0] o_rx_data;
@@ -23,12 +23,12 @@ module uart_rx_tb;
         .CLOCK_RATE (CLOCK_RATE),
         .BAUD_RATE  (BAUD_RATE)
     ) dut (
-        .clk            (clk),
-        .rst            (rst),
-        .rxd_async      (i_rxd_async),
-        .rx_data        (o_rx_data),
-        .rx_data_valid  (o_rx_data_valid),
-        .frame_err      (o_frame_err)
+        .clk_i              (clk),
+        .rst_ni             (rst_n),
+        .rxd_async_i        (i_rxd_async),
+        .rx_data_o          (o_rx_data),
+        .rx_data_valid_o    (o_rx_data_valid),
+        .frame_err_o        (o_frame_err)
     );
 
     // =========================================================
@@ -40,10 +40,10 @@ module uart_rx_tb;
     end
 
     task automatic apply_reset();
-        rst         = 1'b1;
+        rst_n       = 1'b0;
         i_rxd_async = 1'b1;
         repeat (10) @(posedge clk);
-        rst = 1'b0;
+        rst_n = 1'b1;
         repeat (10) @(posedge clk);
     endtask
 
@@ -95,20 +95,30 @@ module uart_rx_tb;
 
         fork
             begin
-                @(posedge clk iff o_rx_data_valid);
-                #1step;
-                received   = o_rx_data;
-                valid_seen = 1;
-                @(posedge clk);
-                #1step;
-                if (o_rx_data_valid)
-                    $error("[%0t] FAIL %s: rx_data_valid held >1 cycle for 0x%02h",
-                           $time, tag, expected);
+                forever begin
+                    @(posedge clk);
+                    #1step;
+                    if (o_rx_data_valid) begin
+                        received   = o_rx_data;
+                        valid_seen = 1;
+                        @(posedge clk);
+                        #1step;
+                        if (o_rx_data_valid)
+                            $error("[%0t] FAIL %s: rx_data_valid held >1 cycle for 0x%02h",
+                                   $time, tag, expected);
+                        break;
+                    end
+                end
             end
             begin
-                @(posedge clk iff o_frame_err);
-                #1step;
-                err_seen = 1;
+                forever begin
+                    @(posedge clk);
+                    #1step;
+                    if (o_frame_err) begin
+                        err_seen = 1;
+                        break;
+                    end
+                end
             end
             #(BIT_PERIOD * 12);
         join_any
@@ -167,16 +177,28 @@ module uart_rx_tb;
             begin
                 fork
                     begin
-                        @(posedge clk iff o_frame_err);
-                        err_seen   = o_frame_err;
-                        @(posedge clk);
-                        #1step;
-                        if (o_frame_err)
-                            $error("[%0t] FAIL frame_err: o_frame_err held >1 cycle", $time);
+                        forever begin
+                            @(posedge clk);
+                            #1step;
+                            if (o_frame_err) begin
+                                err_seen = 1;
+                                @(posedge clk);
+                                #1step;
+                                if (o_frame_err)
+                                    $error("[%0t] FAIL frame_err: o_frame_err held >1 cycle", $time);
+                                break;
+                            end
+                        end
                     end
                     begin
-                        @(posedge clk iff o_rx_data_valid);
-                        valid_seen = 1;
+                        forever begin
+                            @(posedge clk);
+                            #1step;
+                            if (o_rx_data_valid) begin
+                                valid_seen = 1;
+                                break;
+                            end
+                        end
                     end
                     #(BIT_PERIOD * 12);
                 join_any
@@ -211,9 +233,10 @@ module uart_rx_tb;
                 fork
                     begin
                         forever begin
-                        @(posedge clk iff (o_rx_data_valid || o_frame_err));
-                        #1step;
-                        false_event = 1;
+                            @(posedge clk);
+                            #1step;
+                            if (o_rx_data_valid || o_frame_err)
+                                false_event = 1;
                         end
                     end
                     #(BIT_PERIOD * 12);
