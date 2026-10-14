@@ -7,7 +7,8 @@ module control_unit (
     input  logic [31:0]  instr_i,
     output decode_ctrl_t ctrl_o,
     output branch_op_e   branch_op_o,
-    output logic         trace_valid_o
+    output logic         trace_valid_o,
+    output logic         illegal_instr_o
 );
 
     localparam logic [2:0] FUNCT3_ADD_SUB   = 3'b000;     //OP
@@ -54,10 +55,12 @@ module control_unit (
         ST_LD_REQ,
         ST_LD_RESP,
         ST_ST,
-        ST_WB
+        ST_WB,
+        ST_ILLEGAL
     } state_e;
 
     state_e state_q, state_d;
+    logic instr_legal;
     logic [6:0] opcode;
     logic [2:0] funct3;
     logic [6:0] funct7;
@@ -89,6 +92,7 @@ module control_unit (
     // main fsm
     always_comb begin
         state_d             = state_q;
+        illegal_instr_o     = 1'b0;
         ctrl_o.pc_we        = 1'b0;
         ctrl_o.pc_clear_lsb = 1'b0;
         ctrl_o.mem_addr_sel = MEM_ADDR_PC;
@@ -119,40 +123,43 @@ module control_unit (
             end
 
             ST_ID: begin
-                state_d = ST_EX;
-
-                if (is_branch) begin
-                    ctrl_o.imm_sel  = IMM_B;
-                    ctrl_o.op_a_sel = OP_A_OLD_PC;
-                    ctrl_o.op_b_sel = OP_B_IMM;
+                if (!instr_legal) begin
+                    state_d = ST_ILLEGAL;
                 end
+                else begin
+                    state_d = ST_EX;
 
-                if (is_auipc) begin
-                    state_d = ST_WB;
+                    if (is_branch) begin
+                        ctrl_o.imm_sel  = IMM_B;
+                        ctrl_o.op_a_sel = OP_A_OLD_PC;
+                        ctrl_o.op_b_sel = OP_B_IMM;
+                    end
 
-                    ctrl_o.imm_sel  = IMM_U;
-                    ctrl_o.op_a_sel = OP_A_OLD_PC;
-                    ctrl_o.op_b_sel = OP_B_IMM;
-                end
+                    if (is_auipc) begin
+                        state_d = ST_WB;
 
-                if (is_lui) begin
-                    state_d = ST_WB;
+                        ctrl_o.imm_sel  = IMM_U;
+                        ctrl_o.op_a_sel = OP_A_OLD_PC;
+                        ctrl_o.op_b_sel = OP_B_IMM;
+                    end
 
-                    ctrl_o.imm_sel  = IMM_U;
-                    ctrl_o.op_b_sel = OP_B_IMM;
-                    ctrl_o.alu_op   = ALU_PASS_B;
-                end
+                    if (is_lui) begin
+                        state_d = ST_WB;
 
-                if (is_jalr) begin
-                    if (funct3 == FUNCT3_JALR) begin
+                        ctrl_o.imm_sel  = IMM_U;
+                        ctrl_o.op_b_sel = OP_B_IMM;
+                        ctrl_o.alu_op   = ALU_PASS_B;
+                    end
+
+                    if (is_jalr) begin
                         state_d = ST_JALR_TARGET;
                     end
-                end
 
-                if (is_jal) begin
-                    ctrl_o.imm_sel  = IMM_J;
-                    ctrl_o.op_a_sel = OP_A_OLD_PC;
-                    ctrl_o.op_b_sel = OP_B_IMM;
+                    if (is_jal) begin
+                        ctrl_o.imm_sel  = IMM_J;
+                        ctrl_o.op_a_sel = OP_A_OLD_PC;
+                        ctrl_o.op_b_sel = OP_B_IMM;
+                    end
                 end
             end
 
@@ -302,7 +309,14 @@ module control_unit (
                 if (is_load) ctrl_o.result_sel = RESULT_LOAD_DATA_Q;
             end
 
-            default: ;
+            ST_ILLEGAL: begin
+                state_d = ST_ILLEGAL;
+                illegal_instr_o = 1'b1;
+            end
+
+            default: begin
+                state_d = ST_ILLEGAL;
+            end
         endcase
     end
 
@@ -311,6 +325,81 @@ module control_unit (
             state_q <= ST_IF_REQ;
         end else begin
             state_q <= state_d;
+        end
+    end
+
+    // illegal instructions detect
+    always_comb begin
+        instr_legal = 1'b0;
+
+        if (is_op) begin
+            unique case({funct7, funct3})
+                {7'h00, FUNCT3_ADD_SUB},
+                {7'h20, FUNCT3_ADD_SUB},
+                {7'h00, FUNCT3_SLL},
+                {7'h00, FUNCT3_SLT},
+                {7'h00, FUNCT3_SLTU},
+                {7'h00, FUNCT3_XOR},
+                {7'h00, FUNCT3_SRL_SRA},
+                {7'h20, FUNCT3_SRL_SRA},
+                {7'h00, FUNCT3_OR},
+                {7'h00, FUNCT3_AND}: instr_legal = 1'b1;
+                default: ;
+            endcase
+        end
+
+        if (is_op_imm) begin
+            unique case(funct3)
+                FUNCT3_ADDI,
+                FUNCT3_SLTI,
+                FUNCT3_SLTIU,
+                FUNCT3_XORI,
+                FUNCT3_ORI,
+                FUNCT3_ANDI:      instr_legal = 1'b1;
+                FUNCT3_SLLI:      instr_legal = (funct7 == 7'h00);
+                FUNCT3_SRLI_SRAI: instr_legal = (funct7 == 7'h00) || (funct7 == 7'h20);
+                default: ;
+            endcase
+        end
+
+        if (is_load) begin
+            unique case (funct3)
+                FUNCT3_LB,
+                FUNCT3_LH,
+                FUNCT3_LW,
+                FUNCT3_LBU,
+                FUNCT3_LHU: instr_legal = 1'b1;
+                default: ;
+            endcase
+        end
+
+        if (is_store) begin
+            unique case(funct3)
+                FUNCT3_SB,
+                FUNCT3_SH,
+                FUNCT3_SW: instr_legal = 1'b1;
+                default: ;
+            endcase
+        end
+
+        if (is_branch) begin
+            unique case (funct3)
+                FUNCT3_BEQ,
+                FUNCT3_BNE,
+                FUNCT3_BLT,
+                FUNCT3_BGE,
+                FUNCT3_BLTU,
+                FUNCT3_BGEU: instr_legal = 1'b1;
+                default: ;
+            endcase
+        end
+
+        if (is_auipc || is_lui || is_jal) begin
+            instr_legal = 1'b1;
+        end
+
+        if (is_jalr && (funct3 == FUNCT3_JALR)) begin
+            instr_legal = 1'b1;
         end
     end
 

@@ -15,7 +15,8 @@ module rv32_core (
     output logic [31:0] trace_instr_o,
     output logic        trace_rf_we_o,
     output logic [4:0]  trace_rf_rd_o,
-    output logic [31:0] trace_rf_wdata_o
+    output logic [31:0] trace_rf_wdata_o,
+    output logic        illegal_instr_o
 );
 
     decode_ctrl_t ctrl;
@@ -97,7 +98,8 @@ module rv32_core (
         .instr_i            (instr_q),
         .ctrl_o             (ctrl),
         .branch_op_o        (branch_op),
-        .trace_valid_o      (trace_valid_o)
+        .trace_valid_o      (trace_valid_o),
+        .illegal_instr_o    (illegal_instr_o)
     );
 
     branch_unit u_branch_unit (
