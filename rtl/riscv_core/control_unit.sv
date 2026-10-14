@@ -236,7 +236,6 @@ module control_unit (
                     ctrl_o.op_a_sel   = OP_A_RS1;
                     ctrl_o.op_b_sel   = OP_B_RS2;
                     ctrl_o.alu_op     = ALU_SUB;
-                    ctrl_o.result_sel = RESULT_ALU_OUT_Q;
                 end
 
                 else if (is_jalr) begin
@@ -246,7 +245,6 @@ module control_unit (
                     ctrl_o.pc_clear_lsb = 1'b1;
                     ctrl_o.op_a_sel     = OP_A_OLD_PC;
                     ctrl_o.op_b_sel     = OP_B_FOUR;
-                    ctrl_o.result_sel   = RESULT_ALU_OUT_Q;
                 end
 
                 else if (is_jal) begin
@@ -255,7 +253,6 @@ module control_unit (
                     ctrl_o.pc_we        = 1'b1;
                     ctrl_o.op_a_sel     = OP_A_OLD_PC;
                     ctrl_o.op_b_sel     = OP_B_FOUR;
-                    ctrl_o.result_sel   = RESULT_ALU_OUT_Q;
                 end
             end
 
@@ -264,11 +261,15 @@ module control_unit (
 
                 ctrl_o.mem_addr_sel = MEM_ADDR_RESULT;
                 ctrl_o.mem_re       = 1'b1;
-                ctrl_o.result_sel   = RESULT_ALU_OUT_Q;
+                ctrl_o.imm_sel      = IMM_I;
+                ctrl_o.op_a_sel     = OP_A_RS1;
+                ctrl_o.op_b_sel     = OP_B_IMM;
             end
 
             ST_LD_RESP: begin
                 state_d = ST_WB;
+
+                ctrl_o.mem_addr_sel = MEM_ADDR_RESULT;
 
                 unique case (funct3)
                     FUNCT3_LB:  ctrl_o.load_op = LOAD_BYTE;
@@ -285,7 +286,6 @@ module control_unit (
 
                 ctrl_o.mem_addr_sel = MEM_ADDR_RESULT;
                 ctrl_o.mem_we       = 1'b1;
-                ctrl_o.result_sel   = RESULT_ALU_OUT_Q;
 
                 unique case(funct3)
                     FUNCT3_SB: ctrl_o.store_op = STORE_BYTE;
@@ -299,8 +299,6 @@ module control_unit (
                 state_d = ST_IF_REQ;
 
                 ctrl_o.reg_we = 1'b1;
-                ctrl_o.result_sel = RESULT_ALU_OUT_Q;
-
                 if (is_load) ctrl_o.result_sel = RESULT_LOAD_DATA_Q;
             end
 
