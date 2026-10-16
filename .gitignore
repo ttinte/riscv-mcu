@@ -7,3 +7,8 @@ transcript
 vsim.wlf
 *.vstf
 *.log
+
+# Firmware build artifacts
+/firmware/build/
+/firmware/firmware.mem
+/firmware/firmware.hex
