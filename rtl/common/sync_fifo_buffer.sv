@@ -22,6 +22,11 @@ module sync_fifo_buffer #(
     output logic [WIDTH-1:0] data_o
 );
 
+    initial begin : check_buffer
+        if (WIDTH <= 0)
+            $fatal(1, "WIDTH must be greater than zero");
+    end
+
     logic take_data;
     logic load_pending;
     logic start_load;

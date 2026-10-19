@@ -24,12 +24,11 @@ module sync_fifo #(
     output logic             empty_o
 );
 
-    initial begin
-        if (WIDTH == 0)
-            $fatal(1, "FIFO WIDTH must be greater than zero");
-
-        if (DEPTH == 0)
-            $fatal(1, "FIFO DEPTH must be greater than zero");
+    initial begin : check_fifo
+        if (WIDTH <= 0)
+            $fatal(1, "WIDTH must be greater than zero");
+        if (DEPTH < 2)
+            $fatal(1, "DEPTH must be at least 2");
     end
 
     logic [WIDTH-1:0] mem [0:DEPTH-1];

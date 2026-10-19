@@ -1,7 +1,7 @@
 //-----------------------------------------------------------------------------
 //  Project  : UART Receiver
 //  Module   : uart_rx
-//  Children : baud_gen, uart_rx_core
+//  Children : baud_gen, uart_rx_core, cdc_sync_2ff
 //
 //  Description:
 //     Top-level UART RX wrapper with input sync, baud generator, and RX core.

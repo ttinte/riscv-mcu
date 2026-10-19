@@ -1,21 +1,31 @@
+//-----------------------------------------------------------------------------
+//  Module   : uart_wrapper
+//  Children : uart_tx, uart_rx, sync_fifo (x2), sync_fifo_buffer (x2)
+//
+//  Description:
+//     8-bit UART TX/RX with independent FIFOs and FIFO output buffers.
+//     Bus-independent byte interface with TX-full and RX-empty status.
+//
+//-----------------------------------------------------------------------------
+
 module uart_wrapper #(
     parameter int unsigned CLOCK_RATE = 100_000_000,
     parameter int unsigned BAUD_RATE  = 115_200,
     parameter int unsigned FIFO_DEPTH = 16
 )(
-    input  logic        clk_i,
-    input  logic        rst_ni,
+    input  logic       clk_i,
+    input  logic       rst_ni,
 
-    output logic        tx_full_o,
-    input  logic        tx_we_i,
-    input  logic [31:0] tx_data_i,
+    output logic       tx_full_o,
+    input  logic       tx_we_i,
+    input  logic [7:0] tx_data_i,
 
-    output logic        rx_empty_o,
-    input  logic        rx_re_i,
-    output logic [31:0] rx_data_o,
+    output logic       rx_empty_o,
+    input  logic       rx_re_i,
+    output logic [7:0] rx_data_o,
 
-    output logic        txd_o,
-    input  logic        rxd_async_i
+    output logic       txd_o,
+    input  logic       rxd_async_i
 );
 
     localparam int unsigned WIDTH = 8;
@@ -37,7 +47,7 @@ module uart_wrapper #(
         .clk_i              (clk_i),
         .rst_ni             (rst_ni),
         .we_i               (tx_we_i),
-        .data_i             (tx_data_i[WIDTH-1:0]),
+        .data_i             (tx_data_i),
         .re_i               (tx_fifo_re),
         .data_o             (tx_fifo_data),
         .full_o             (tx_full_o),
@@ -73,7 +83,6 @@ module uart_wrapper #(
 
     logic             rx_core_valid;
     logic [WIDTH-1:0] rx_core_data;
-    logic [WIDTH-1:0] rx_data;
     logic             rx_valid;
 
     logic             rx_fifo_re;
@@ -117,12 +126,9 @@ module uart_wrapper #(
         .fifo_empty_i       (rx_fifo_empty),
         .data_valid_o       (rx_valid),
         .data_ready_i       (rx_re_i),
-        .data_o             (rx_data)
+        .data_o             (rx_data_o)
     );
 
     assign rx_empty_o = !rx_valid;
-    assign rx_data_o  = {{(32-WIDTH){1'b0}}, rx_data};
-
     
-
 endmodule
