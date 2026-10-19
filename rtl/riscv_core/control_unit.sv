@@ -1,12 +1,32 @@
+//-----------------------------------------------------------------------------
+//  Module   : control_unit
+//  Children : None
+//
+//  Description:
+//     Multicycle control FSM for the RV32 core.
+//     Instruction fetch requires at least one-cycle response latency;
+//     zero-wait fetch completion is not supported.
+//     Load/store requests wait for ready.
+//     Illegal instructions, bus errors and misaligned accesses halt the core.
+//
+//-----------------------------------------------------------------------------
+
 import rv32_pkg::*;
 
 module control_unit (
     input  logic         clk_i,
     input  logic         rst_ni,
-    input  logic         take_branch_i,
     input  logic [31:0]  instr_i,
     output decode_ctrl_t ctrl_o,
+
+    output logic         mem_valid_o,
+    input  logic         mem_ready_i,
+    input  logic         mem_error_i,
+
+    input  logic [1:0]   addr_lsb_i,
+    input  logic         take_branch_i,
     output branch_op_e   branch_op_o,
+
     output logic         trace_valid_o,
     output logic         illegal_instr_o
 );
@@ -52,18 +72,20 @@ module control_unit (
         ST_ID,
         ST_JALR_TARGET,
         ST_EX,
-        ST_LD_REQ,
-        ST_LD_RESP,
+        ST_LD,
         ST_ST,
         ST_WB,
         ST_ILLEGAL
     } state_e;
 
     state_e state_q, state_d;
-    logic instr_legal;
     logic [6:0] opcode;
     logic [2:0] funct3;
     logic [6:0] funct7;
+
+    logic addr_misaligned;
+    logic data_misaligned;
+    logic instr_legal;
 
     logic is_op;
     logic is_op_imm;
@@ -89,15 +111,15 @@ module control_unit (
     assign is_jalr   = (opcode == OPCODE_JALR);
     assign is_jal    = (opcode == OPCODE_JAL);
 
-    // main fsm
+    // Main control fsm
     always_comb begin
         state_d             = state_q;
         illegal_instr_o     = 1'b0;
+        mem_valid_o         = 1'b0;
         ctrl_o.pc_we        = 1'b0;
         ctrl_o.pc_clear_lsb = 1'b0;
         ctrl_o.mem_addr_sel = MEM_ADDR_PC;
         ctrl_o.mem_we       = 1'b0;
-        ctrl_o.mem_re       = 1'b0;
         ctrl_o.load_op      = LOAD_NONE;
         ctrl_o.store_op     = STORE_NONE;
         ctrl_o.ir_we        = 1'b0;
@@ -106,20 +128,31 @@ module control_unit (
         ctrl_o.op_a_sel     = OP_A_PC;
         ctrl_o.op_b_sel     = OP_B_FOUR;
         ctrl_o.alu_op       = ALU_ADD;
+        ctrl_o.alu_out_we   = 1'b0;
         ctrl_o.result_sel   = RESULT_ALU_OUT_Q;
 
         unique case (state_q)
             ST_IF_REQ: begin
                 state_d = ST_IF_RESP;
 
-                ctrl_o.mem_re    = 1'b1;
+                mem_valid_o       = 1'b1;
+                ctrl_o.alu_out_we = 1'b1;
             end
 
             ST_IF_RESP: begin
-                state_d = ST_ID;
+                mem_valid_o = 1'b1;
 
-                ctrl_o.pc_we = 1'b1;
-                ctrl_o.ir_we = 1'b1;
+                if (mem_ready_i) begin
+                    state_d = mem_error_i ? ST_ILLEGAL : ST_ID;
+
+                    if (!mem_error_i) begin
+                        state_d = ST_ID;
+                        ctrl_o.pc_we = 1'b1;
+                        ctrl_o.ir_we = 1'b1;
+                    end
+                end else begin
+                    state_d = ST_IF_RESP;
+                end
             end
 
             ST_ID: begin
@@ -130,25 +163,28 @@ module control_unit (
                     state_d = ST_EX;
 
                     if (is_branch) begin
-                        ctrl_o.imm_sel  = IMM_B;
-                        ctrl_o.op_a_sel = OP_A_OLD_PC;
-                        ctrl_o.op_b_sel = OP_B_IMM;
+                        ctrl_o.imm_sel    = IMM_B;
+                        ctrl_o.op_a_sel   = OP_A_OLD_PC;
+                        ctrl_o.op_b_sel   = OP_B_IMM;
+                        ctrl_o.alu_out_we = 1'b1;
                     end
 
                     if (is_auipc) begin
                         state_d = ST_WB;
 
-                        ctrl_o.imm_sel  = IMM_U;
-                        ctrl_o.op_a_sel = OP_A_OLD_PC;
-                        ctrl_o.op_b_sel = OP_B_IMM;
+                        ctrl_o.imm_sel    = IMM_U;
+                        ctrl_o.op_a_sel   = OP_A_OLD_PC;
+                        ctrl_o.op_b_sel   = OP_B_IMM;
+                        ctrl_o.alu_out_we = 1'b1;
                     end
 
                     if (is_lui) begin
                         state_d = ST_WB;
 
-                        ctrl_o.imm_sel  = IMM_U;
-                        ctrl_o.op_b_sel = OP_B_IMM;
-                        ctrl_o.alu_op   = ALU_PASS_B;
+                        ctrl_o.imm_sel    = IMM_U;
+                        ctrl_o.op_b_sel   = OP_B_IMM;
+                        ctrl_o.alu_op     = ALU_PASS_B;
+                        ctrl_o.alu_out_we = 1'b1;
                     end
 
                     if (is_jalr) begin
@@ -156,9 +192,10 @@ module control_unit (
                     end
 
                     if (is_jal) begin
-                        ctrl_o.imm_sel  = IMM_J;
-                        ctrl_o.op_a_sel = OP_A_OLD_PC;
-                        ctrl_o.op_b_sel = OP_B_IMM;
+                        ctrl_o.imm_sel    = IMM_J;
+                        ctrl_o.op_a_sel   = OP_A_OLD_PC;
+                        ctrl_o.op_b_sel   = OP_B_IMM;
+                        ctrl_o.alu_out_we = 1'b1;
                     end
                 end
             end
@@ -166,17 +203,19 @@ module control_unit (
             ST_JALR_TARGET: begin
                 state_d = ST_EX;
 
-                ctrl_o.imm_sel  = IMM_I;
-                ctrl_o.op_a_sel = OP_A_RS1;
-                ctrl_o.op_b_sel = OP_B_IMM;
+                ctrl_o.imm_sel    = IMM_I;
+                ctrl_o.op_a_sel   = OP_A_RS1;
+                ctrl_o.op_b_sel   = OP_B_IMM;
+                ctrl_o.alu_out_we = 1'b1;
             end
 
             ST_EX: begin
                 if (is_op) begin
                     state_d = ST_WB;
 
-                    ctrl_o.op_a_sel = OP_A_RS1;
-                    ctrl_o.op_b_sel = OP_B_RS2;
+                    ctrl_o.op_a_sel   = OP_A_RS1;
+                    ctrl_o.op_b_sel   = OP_B_RS2;
+                    ctrl_o.alu_out_we = 1'b1;
 
                     unique case({funct7, funct3})
                         {7'h00, FUNCT3_ADD_SUB}: ctrl_o.alu_op = ALU_ADD;
@@ -196,9 +235,10 @@ module control_unit (
                 else if (is_op_imm) begin
                     state_d = ST_WB;
 
-                    ctrl_o.imm_sel  = IMM_I;
-                    ctrl_o.op_a_sel = OP_A_RS1;
-                    ctrl_o.op_b_sel = OP_B_IMM;
+                    ctrl_o.imm_sel    = IMM_I;
+                    ctrl_o.op_a_sel   = OP_A_RS1;
+                    ctrl_o.op_b_sel   = OP_B_IMM;
+                    ctrl_o.alu_out_we = 1'b1;
 
                     unique case(funct3)
                         FUNCT3_ADDI:  ctrl_o.alu_op = ALU_ADD;
@@ -221,11 +261,12 @@ module control_unit (
                 end
 
                 else if (is_load) begin
-                    state_d = ST_LD_REQ;
+                    state_d = ST_LD;
 
                     ctrl_o.imm_sel  = IMM_I;
                     ctrl_o.op_a_sel = OP_A_RS1;
                     ctrl_o.op_b_sel = OP_B_IMM;
+                    ctrl_o.alu_out_we = 1'b1;
                 end
 
                 else if (is_store) begin
@@ -234,6 +275,7 @@ module control_unit (
                     ctrl_o.imm_sel  = IMM_S;
                     ctrl_o.op_a_sel = OP_A_RS1;
                     ctrl_o.op_b_sel = OP_B_IMM;
+                    ctrl_o.alu_out_we = 1'b1;
                 end
 
                 else if (is_branch) begin
@@ -252,6 +294,7 @@ module control_unit (
                     ctrl_o.pc_clear_lsb = 1'b1;
                     ctrl_o.op_a_sel     = OP_A_OLD_PC;
                     ctrl_o.op_b_sel     = OP_B_FOUR;
+                    ctrl_o.alu_out_we = 1'b1;
                 end
 
                 else if (is_jal) begin
@@ -260,22 +303,18 @@ module control_unit (
                     ctrl_o.pc_we        = 1'b1;
                     ctrl_o.op_a_sel     = OP_A_OLD_PC;
                     ctrl_o.op_b_sel     = OP_B_FOUR;
+                    ctrl_o.alu_out_we = 1'b1;
                 end
             end
 
-            ST_LD_REQ: begin
-                state_d = ST_LD_RESP;
+            ST_LD: begin
+                if (mem_ready_i) begin
+                    state_d = mem_error_i ? ST_ILLEGAL : ST_WB;
+                end else begin
+                    state_d = ST_LD;
+                end
 
-                ctrl_o.mem_addr_sel = MEM_ADDR_RESULT;
-                ctrl_o.mem_re       = 1'b1;
-                ctrl_o.imm_sel      = IMM_I;
-                ctrl_o.op_a_sel     = OP_A_RS1;
-                ctrl_o.op_b_sel     = OP_B_IMM;
-            end
-
-            ST_LD_RESP: begin
-                state_d = ST_WB;
-
+                mem_valid_o         = 1'b1;
                 ctrl_o.mem_addr_sel = MEM_ADDR_RESULT;
 
                 unique case (funct3)
@@ -289,8 +328,13 @@ module control_unit (
             end
 
             ST_ST: begin
-                state_d = ST_IF_REQ;
+                if (mem_ready_i) begin
+                    state_d = mem_error_i ? ST_ILLEGAL : ST_IF_REQ;
+                end else begin
+                    state_d = ST_ST;
+                end
 
+                mem_valid_o         = 1'b1;
                 ctrl_o.mem_addr_sel = MEM_ADDR_RESULT;
                 ctrl_o.mem_we       = 1'b1;
 
@@ -318,6 +362,19 @@ module control_unit (
                 state_d = ST_ILLEGAL;
             end
         endcase
+
+        // Reject misaligned taken-branch and jump targets
+        if ((state_q == ST_EX) && addr_misaligned &&
+           ((is_branch && take_branch_i) || is_jalr || is_jal)) begin
+            state_d = ST_ILLEGAL;
+            ctrl_o.pc_we = 1'b0;
+        end
+        // Reject misaligned load/store addresses before issuing a request
+        if (((state_q == ST_LD) || (state_q == ST_ST)) && data_misaligned) begin
+            state_d = ST_ILLEGAL;
+            mem_valid_o = 1'b0;
+            ctrl_o.mem_we = 1'b0;
+        end
     end
 
     always_ff @(posedge clk_i) begin
@@ -328,7 +385,7 @@ module control_unit (
         end
     end
 
-    // illegal instructions detect
+    // Instruction legality check
     always_comb begin
         instr_legal = 1'b0;
 
@@ -403,7 +460,20 @@ module control_unit (
         end
     end
 
-    // branch_op decode
+    // Instruction and data address alignment checks
+    always_comb begin
+        addr_misaligned = is_jalr ? addr_lsb_i[1] : |addr_lsb_i;
+        data_misaligned = 1'b0;
+
+        unique case (funct3)
+            3'b001,
+            3'b101: data_misaligned = addr_lsb_i[0];
+            3'b010: data_misaligned = |addr_lsb_i;
+            default: ;
+        endcase
+    end
+
+    // Branch condition decode
     always_comb begin
         branch_op_o = BRANCH_NONE;
 
@@ -420,7 +490,8 @@ module control_unit (
         end
     end
 
-    assign trace_valid_o = (state_q == ST_WB) || (state_q == ST_ST) ||
-                           ((state_q == ST_EX) && is_branch);
+    assign trace_valid_o = ((state_q == ST_ST) && mem_valid_o && mem_ready_i && !mem_error_i) ||
+                           ((state_q == ST_EX) && is_branch && !(take_branch_i && addr_misaligned)) ||
+                           (state_q == ST_WB);
 
 endmodule

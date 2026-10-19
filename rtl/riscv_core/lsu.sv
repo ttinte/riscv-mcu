@@ -1,15 +1,13 @@
 import rv32_pkg::*;
 
 module lsu (
-    input  logic        we_i,
-    input  logic        re_i,
     input  logic [1:0]  addr_lsb_i,
+    input  logic        we_i,
     input  load_op_e    load_op_i,
     input  store_op_e   store_op_i,
 
     input  logic [31:0] mem_rdata_i,
     output logic [31:0] load_data_o,
-    output logic        mem_re_o,
     
     input  logic [31:0] store_data_i,
     output logic [31:0] mem_wdata_o,
@@ -75,7 +73,5 @@ module lsu (
             mem_wstrb_o = we_i ? 4'b1111 : 4'b0000;
         end
     end
-
-    assign mem_re_o = re_i;
     
 endmodule

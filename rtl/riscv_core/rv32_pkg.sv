@@ -1,15 +1,15 @@
 package rv32_pkg;
 
     typedef enum logic [6:0] {
-        OPCODE_OP     = 7'd51,
-        OPCODE_OP_IMM = 7'd19,
-        OPCODE_LOAD   = 7'd3,
-        OPCODE_STORE  = 7'd35,
-        OPCODE_BRANCH = 7'd99,
-        OPCODE_AUIPC  = 7'd23,
-        OPCODE_LUI    = 7'd55,
-        OPCODE_JALR   = 7'd103,
-        OPCODE_JAL    = 7'd111
+        OPCODE_OP     = 7'h33,
+        OPCODE_OP_IMM = 7'h13,
+        OPCODE_LOAD   = 7'h03,
+        OPCODE_STORE  = 7'h23,
+        OPCODE_BRANCH = 7'h63,
+        OPCODE_AUIPC  = 7'h17,
+        OPCODE_LUI    = 7'h37,
+        OPCODE_JALR   = 7'h67,
+        OPCODE_JAL    = 7'h6F
     } opcode_e;
 
     typedef enum logic [2:0] {
@@ -95,7 +95,6 @@ package rv32_pkg;
         logic           pc_clear_lsb;
         mem_addr_sel_e  mem_addr_sel;
         logic           mem_we;
-        logic           mem_re;
         load_op_e       load_op;
         store_op_e      store_op;
         logic           ir_we;
@@ -104,6 +103,7 @@ package rv32_pkg;
         op_a_sel_e      op_a_sel;
         op_b_sel_e      op_b_sel;
         alu_op_e        alu_op;
+        logic           alu_out_we;
         result_sel_e    result_sel;
     } decode_ctrl_t;
 

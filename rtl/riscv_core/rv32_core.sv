@@ -4,10 +4,13 @@ module rv32_core (
     input  logic        clk_i,
     input  logic        rst_ni,
 
-    output logic [3:0]  mem_wstrb_o,
-    output logic        mem_re_o,
+    output logic        mem_valid_o,
+    input  logic        mem_ready_i,
+    input  logic        mem_error_i,
     output logic [31:0] mem_addr_o,
+    output logic        mem_we_o,
     output logic [31:0] mem_wdata_o,
+    output logic [3:0]  mem_wstrb_o,
     input  logic [31:0] mem_rdata_i,
 
     output logic        trace_valid_o,
@@ -60,9 +63,9 @@ module rv32_core (
             load_data_q   <= load_data;
             rs1_data_q    <= rs1_data;
             rs2_data_q    <= rs2_data;
-            alu_out_q     <= alu_result;
+            alu_out_q     <= ctrl.alu_out_we ? alu_result : alu_out_q;
         end
-    end 
+    end
 
     always_comb begin
         mem_addr  = pc_q;
@@ -94,9 +97,13 @@ module rv32_core (
     control_unit u_control_unit (
         .clk_i              (clk_i),
         .rst_ni             (rst_ni),
-        .take_branch_i      (take_branch),
         .instr_i            (instr_q),
         .ctrl_o             (ctrl),
+        .mem_valid_o        (mem_valid_o),
+        .mem_ready_i        (mem_ready_i),
+        .mem_error_i        (mem_error_i),
+        .addr_lsb_i         (alu_out_q[1:0]),
+        .take_branch_i      (take_branch),
         .branch_op_o        (branch_op),
         .trace_valid_o      (trace_valid_o),
         .illegal_instr_o    (illegal_instr_o)
@@ -109,16 +116,15 @@ module rv32_core (
     );
 
     assign mem_addr_o  = mem_addr;
+    assign mem_we_o    = ctrl.mem_we;
 
     lsu u_lsu (
-        .we_i               (ctrl.mem_we),
-        .re_i               (ctrl.mem_re),
         .addr_lsb_i         (mem_addr[1:0]),
+        .we_i               (ctrl.mem_we),
         .load_op_i          (ctrl.load_op),
         .store_op_i         (ctrl.store_op),
         .mem_rdata_i        (mem_rdata_i),
         .load_data_o        (load_data),
-        .mem_re_o           (mem_re_o),
         .store_data_i       (rs2_data_q),
         .mem_wdata_o        (mem_wdata_o),
         .mem_wstrb_o        (mem_wstrb_o)
