@@ -1,3 +1,6 @@
+# Local experiments
+/test/
+
 # ModelSim/Questa compiled library
 work/
 
