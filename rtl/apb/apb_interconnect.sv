@@ -24,8 +24,8 @@ module apb_interconnect #(
     data_t rdata [NUM_SLAVES];
 
     for (genvar i = 0; i < NUM_SLAVES; i++) begin
-        assign pselx[i] = cpl.psel && (cpl.paddr >> SLOT_OFFSET_WIDTH == 
-                                    BASE_ADDR[i] >> SLOT_OFFSET_WIDTH);
+        assign pselx[i] = cpl.psel && (cpl.paddr[APB_ADDR_WIDTH-1:SLOT_OFFSET_WIDTH] ==
+                                    BASE_ADDR[i][APB_ADDR_WIDTH-1:SLOT_OFFSET_WIDTH]);
 
         assign req[i].paddr   = cpl.paddr;
         assign req[i].psel    = pselx[i];

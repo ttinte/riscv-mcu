@@ -29,7 +29,7 @@ module ram #(
     end
 
     assign word_idx = addr_i[$clog2(DEPTH_WORDS)+1:2];
-    assign accept   = rst_ni && valid_i && !ready_o;
+    assign accept   = valid_i && !ready_o;
 
     always_ff @(posedge clk_i) begin
         if (!rst_ni) begin
