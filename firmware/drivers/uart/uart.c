@@ -29,6 +29,17 @@ char uart_getc(void)
     return (char)UART_RX;
 }
 
+uint32_t uart_try_getc(char *character)
+{
+    if (UART_RX_EMPTY) {
+        return 0u;
+    }
+
+    *character = (char)UART_RX;
+    ++rx_byte_count;
+    return 1u;
+}
+
 uint32_t uart_rx_count(void)
 {
     return rx_byte_count;

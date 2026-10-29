@@ -3,12 +3,12 @@
 
 #include <stdint.h>
 
-/* Blocking, polling-only UART access. Clock and baud are configured in RTL.
- * These functions check STATUS before accessing TX/RX: full TX or empty RX
- * accesses return an APB error, which currently halts the CPU. */
- 
+/* Clock and baud are configured in RTL. uart_putc() and uart_getc() block;
+ * uart_try_getc() returns zero immediately when the RX FIFO is empty. */
+
 void uart_putc(char character);
 char uart_getc(void);
+uint32_t uart_try_getc(char *character);
 
 uint32_t uart_rx_count(void);
 uint32_t uart_tx_count(void);

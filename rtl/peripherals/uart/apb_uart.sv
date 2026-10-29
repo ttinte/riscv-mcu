@@ -4,13 +4,14 @@
 //
 //  Description:
 //     APB interface for 8-bit UART TX/RX with FIFOs.
-//     Transfers take 2 APB cycles (SETUP + ACCESS) with no wait states.
-//     Full TX / empty RX return PSLVERR instead of stalling the bus
-//     and software should check STATUS before accessing TX/RX.
+//     Transfers normally take 2 APB cycles (SETUP + ACCESS).
+//     Software may check STATUS before accessing TX/RX. If the TX FIFO is full
+//     or the RX FIFO is empty, PREADY is held low until the transfer can be
+//     completed. Invalid register offsets and access directions complete with
+//     PSLVERR; temporary FIFO states use wait states instead of bus errors.
 //     TX writes use only PSTRB[0]; other lanes are ignored without error.
 //
 //-----------------------------------------------------------------------------
-import uart_reg_pkg::*;
 
 module apb_uart #(
     parameter int unsigned CLOCK_RATE = 100_000_000,
@@ -23,6 +24,7 @@ module apb_uart #(
     output logic txd_o,
     apb_if.Slave cpl
 );
+    import uart_reg_pkg::*;
 
     logic       tx_full;
     logic       tx_we;
@@ -31,6 +33,8 @@ module apb_uart #(
     logic [7:0] rx_data;
     logic       access_error;
     logic       access_done;
+    logic       tx_access;
+    logic       rx_access;
 
     always_comb begin
         cpl.prdata   = '0;
@@ -39,17 +43,17 @@ module apb_uart #(
         if (cpl.psel) begin
             unique case (cpl.paddr[11:0])
                 TX_OFFSET: begin
-                    access_error = !cpl.pwrite || (cpl.pstrb[0] && tx_full);
+                    access_error = !cpl.pwrite;
                 end
 
                 RX_OFFSET: begin
-                    access_error = cpl.pwrite || rx_empty;
+                    access_error = cpl.pwrite;
                     if (!cpl.pwrite && !rx_empty)
                         cpl.prdata[7:0] = rx_data;
                 end
 
                 STATUS_OFFSET: begin
-                    access_error  = cpl.pwrite;
+                    access_error = cpl.pwrite;
                     cpl.prdata[0] = tx_full;
                     cpl.prdata[1] = rx_empty;
                 end
@@ -59,11 +63,14 @@ module apb_uart #(
         end
     end
 
-    assign cpl.pready  = rst_ni;
+    assign tx_access = cpl.psel && cpl.pwrite &&
+                       (cpl.paddr[11:0] == TX_OFFSET) && cpl.pstrb[0];
+    assign rx_access = cpl.psel && !cpl.pwrite &&
+                       (cpl.paddr[11:0] == RX_OFFSET);
     assign access_done = cpl.psel && cpl.penable && cpl.pready;
-    assign cpl.pslverr = access_done && access_error;
-    assign tx_we = access_done && !access_error && (cpl.paddr[11:0] == TX_OFFSET) && cpl.pstrb[0];
-    assign rx_re = access_done && !access_error && (cpl.paddr[11:0] == RX_OFFSET);
+
+    assign tx_we = access_done && !access_error && tx_access;
+    assign rx_re = access_done && !access_error && rx_access;
 
     uart_wrapper #(
         .CLOCK_RATE         (CLOCK_RATE),
@@ -81,5 +88,10 @@ module apb_uart #(
         .txd_o              (txd_o),
         .rxd_async_i        (rxd_i)
     );
+
+    assign cpl.pready  = rst_ni &&
+                         !(tx_access && tx_full) &&
+                         !(rx_access && rx_empty);
+    assign cpl.pslverr = access_done && access_error;
 
 endmodule
